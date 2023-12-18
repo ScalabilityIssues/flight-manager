@@ -1,0 +1,14 @@
+syntax = "proto3";
+package planes;
+
+service Planes {
+    rpc ListPlanes(Empty) returns (stream PlaneRead);
+}
+
+message Empty {}
+
+message PlaneRead {
+    string id = 1;
+    string name = 2;
+    int32 capacity = 3;
+}

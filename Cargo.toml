@@ -1,0 +1,25 @@
+[package]
+name = "flight-mngr"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[dependencies]
+anyhow = "1.0.75"
+clap = { version = "4.4.11", features = ["env", "derive"] }
+futures = "0.3.29"
+prost = "0.12.3"
+sqlx = { version = "0.7.3", features = ["postgres", "uuid", "runtime-tokio", "time"] }
+tokio = { version = "1.34.0", features = ["full"] }
+tokio-stream = { version = "0.1.14", features = ["full"] }
+tonic = "0.10.2"
+
+[build-dependencies]
+tonic-build = "0.10.2"

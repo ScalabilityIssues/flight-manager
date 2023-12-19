@@ -53,6 +53,9 @@ async fn main() -> anyhow::Result<()> {
     println!("{:?}", opt);
 
     let db_pool = PgPool::connect(&opt.db).await?;
+
+    sqlx::migrate!().run(&db_pool).await?;
+
     let state = MyPlanes { db_pool };
 
     Server::builder()

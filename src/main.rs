@@ -1,16 +1,14 @@
+use std::error::Error;
+
 use anyhow;
 use clap::Parser;
 use sqlx::PgPool;
-
-use futures::stream::StreamExt;
-use planes::Empty;
-use planes::{planes_server::Planes, PlaneRead};
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 
-use crate::planes::planes_server::PlanesServer;
+use crate::planes::{
+    planes_server::Planes, planes_server::PlanesServer, Empty, PlaneList, PlaneRead,
+};
 
 mod planes {
     tonic::include_proto!("planes");
@@ -18,17 +16,13 @@ mod planes {
 
 #[derive(Parser, Debug)]
 struct Opt {
+    #[clap(env = "DATABASE_URL")]
     db: String,
 }
 
-// #[derive(Debug)]
-// struct Plane {
-//     id: String,
-//     name: String,
-//     capacity: i32,
-// }
-
-async fn list_planes(pool: &PgPool) -> anyhow::Result<Vec<PlaneRead>> {
+async fn list_planes(
+    pool: &PgPool,
+) -> Result<Vec<PlaneRead>, Box<dyn Error + Send + Sync + 'static>> {
     let planes = sqlx::query_as!(PlaneRead, "SELECT * FROM planes")
         .fetch_all(pool)
         .await?;
@@ -42,27 +36,14 @@ struct MyPlanes {
 
 #[tonic::async_trait]
 impl Planes for MyPlanes {
-    type ListPlanesStream = ReceiverStream<Result<PlaneRead, Status>>;
-
-    async fn list_planes(
-        &self,
-        req: Request<Empty>,
-    ) -> Result<Response<Self::ListPlanesStream>, Status> {
+    async fn list_planes(&self, req: Request<Empty>) -> Result<Response<PlaneList>, Status> {
         println!("Got a request: {:?}", req);
-        let (tx, rx) = mpsc::channel(4);
-        let pool = self.db_pool.clone();
 
-        tokio::spawn(async move {
-            let mut planes = sqlx::query_as!(PlaneRead, "SELECT * FROM planes").fetch(&pool);
+        let planes = list_planes(&self.db_pool)
+            .await
+            .map_err(Status::from_error)?;
 
-            while let Some(plane) = planes.next().await {
-                tx.send(plane.map_err(|err| Status::new(tonic::Code::Internal, err.to_string())))
-                    .await
-                    .unwrap();
-            }
-        });
-
-        Ok(Response::new(Self::ListPlanesStream::new(rx)))
+        Ok(Response::new(PlaneList { planes }))
     }
 }
 
@@ -71,13 +52,8 @@ async fn main() -> anyhow::Result<()> {
     let opt = Opt::parse();
     println!("{:?}", opt);
 
-    let pool = PgPool::connect(&opt.db).await?;
-
-    let planes = list_planes(&pool).await?;
-
-    println!("planes: {:?}", planes);
-
-    let state = MyPlanes { db_pool: pool };
+    let db_pool = PgPool::connect(&opt.db).await?;
+    let state = MyPlanes { db_pool };
 
     Server::builder()
         .add_service(PlanesServer::new(state))

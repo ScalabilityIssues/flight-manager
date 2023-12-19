@@ -2,10 +2,14 @@ syntax = "proto3";
 package planes;
 
 service Planes {
-    rpc ListPlanes(Empty) returns (stream PlaneRead);
+    rpc ListPlanes(Empty) returns (PlaneList);
 }
 
 message Empty {}
+
+message PlaneList {
+    repeated PlaneRead planes = 1;
+}
 
 message PlaneRead {
     string id = 1;

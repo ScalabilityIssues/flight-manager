@@ -1,5 +1,3 @@
-use tokio_stream::StreamExt;
-
 use crate::planes::{planes_client::PlanesClient, Empty};
 
 pub mod planes {
@@ -13,11 +11,9 @@ async fn main() -> anyhow::Result<()> {
     let request = tonic::Request::new(Empty {});
 
     let response = client.list_planes(request).await?;
-    let mut stream = response.into_inner();
+    let planes_list = response.into_inner();
 
-    while let Some(Ok(plane)) = stream.next().await {
-        println!("NOTE = {:?}", plane);
-    }
+    print!("Planes: {:?}", planes_list.planes);
 
     Ok(())
 }

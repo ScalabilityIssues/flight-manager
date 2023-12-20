@@ -1,66 +1,56 @@
-use std::error::Error;
+use std::net::{IpAddr, SocketAddr};
 
 use anyhow;
 use clap::Parser;
 use sqlx::PgPool;
+use tokio::net::TcpListener;
+use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
-use tonic::{Request, Response, Status};
 
-use crate::planes::{
-    planes_server::Planes, planes_server::PlanesServer, Empty, PlaneList, PlaneRead,
-};
+use crate::planes::{PlanesApp, PlanesServer};
 
-mod planes {
-    tonic::include_proto!("planes");
-}
+mod planes;
 
-#[derive(Parser, Debug)]
+#[derive(clap::Parser, Debug)]
 struct Opt {
     #[clap(env = "DATABASE_URL")]
     db: String,
-}
-
-async fn list_planes(
-    pool: &PgPool,
-) -> Result<Vec<PlaneRead>, Box<dyn Error + Send + Sync + 'static>> {
-    let planes = sqlx::query_as!(PlaneRead, "SELECT * FROM planes")
-        .fetch_all(pool)
-        .await?;
-
-    Ok(planes)
-}
-
-struct MyPlanes {
-    db_pool: PgPool,
-}
-
-#[tonic::async_trait]
-impl Planes for MyPlanes {
-    async fn list_planes(&self, req: Request<Empty>) -> Result<Response<PlaneList>, Status> {
-        println!("Got a request: {:?}", req);
-
-        let planes = list_planes(&self.db_pool)
-            .await
-            .map_err(Status::from_error)?;
-
-        Ok(Response::new(PlaneList { planes }))
-    }
+    #[clap(long, default_value = "127.0.0.1")]
+    ip: IpAddr,
+    #[clap(long, default_value = "50051")]
+    port: u16,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt().init();
+
     let opt = Opt::parse();
-    println!("{:?}", opt);
 
     let db_pool = PgPool::connect(&opt.db).await?;
 
+    tracing::info!("running migrations");
     sqlx::migrate!().run(&db_pool).await?;
 
-    let state = MyPlanes { db_pool };
+    let addr = SocketAddr::new(opt.ip, opt.port);
+    let listener = TcpListener::bind(addr).await?;
+
+    tracing::info!("starting server on {}", addr);
+
+    let reflection = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(planes::proto::FILE_DESCRIPTOR_SET)
+        .build()?;
 
     Server::builder()
-        .add_service(PlanesServer::new(state))
-        .serve("0.0.0.0:50051".parse()?)
+        .timeout(std::time::Duration::from_secs(10))
+        // .layer(tower_http::trace::TraceLayer::new_for_grpc())  // <- broken
+        .layer(tonic::service::interceptor(|req| {
+            tracing::info!("received request {:?}", req);
+            Ok(req)
+        }))
+        .add_service(reflection)
+        .add_service(PlanesServer::new(PlanesApp::new(db_pool)))
+        .serve_with_incoming(TcpListenerStream::new(listener))
         .await?;
 
     Ok(())

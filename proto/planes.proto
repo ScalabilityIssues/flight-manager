@@ -3,16 +3,45 @@ package planes;
 
 service Planes {
     rpc ListPlanes(Empty) returns (PlaneList);
+    rpc GetPlane(IdQuery) returns (PlaneRead);
+    rpc CreatePlane(PlaneCreate) returns (PlaneRead);
+    rpc DeletePlane(IdQuery) returns (Empty);
+    rpc UpdatePlane(PlaneUpdate) returns (PlaneRead);
 }
 
 message Empty {}
+
+message IdQuery {
+    string id = 1;
+}
 
 message PlaneList {
     repeated PlaneRead planes = 1;
 }
 
+message PlaneCreate {
+    string name = 1;
+    string model = 2;
+    int32 cabin_capacity = 3;
+    int32 cargo_capacity_kg = 4;
+}
+
+message PlanePatch {
+    optional string name = 1;
+    optional string model = 2;
+    optional int32 cabin_capacity = 3;
+    optional int32 cargo_capacity_kg = 4;
+}
+
+message PlaneUpdate {
+    string id = 1;
+    PlanePatch patch = 2; 
+}
+
 message PlaneRead {
     string id = 1;
     string name = 2;
-    int32 capacity = 3;
+    string model = 3;
+    int32 cabin_capacity = 4;
+    int32 cargo_capacity_kg = 5;
 }

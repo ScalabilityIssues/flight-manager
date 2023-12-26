@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into planes (id, name, model, cabin_capacity, cargo_capacity_kg) values (gen_random_uuid(), $1, $2, $3, $4) returning *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "model",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "cabin_capacity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "cargo_capacity_kg",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2e90e5d2be5f47a6f3a79556bf1cacc34265e0c4f697881b16e120cc60ab51c8"
+}

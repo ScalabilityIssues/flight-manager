@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update planes set cabin_capacity = $1 where id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "52119e7121824186aecce5d7f5c72cbfda2f57d70650abec6762362704760729"
+}

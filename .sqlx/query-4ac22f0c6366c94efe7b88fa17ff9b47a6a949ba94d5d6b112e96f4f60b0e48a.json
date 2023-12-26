@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select * from planes",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "model",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "cabin_capacity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "cargo_capacity_kg",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4ac22f0c6366c94efe7b88fa17ff9b47a6a949ba94d5d6b112e96f4f60b0e48a"
+}

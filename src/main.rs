@@ -7,9 +7,14 @@ use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
 
+use crate::airports::{AirportsApp, AirportsServer};
 use crate::planes::{PlanesApp, PlanesServer};
 
+mod airports;
 mod planes;
+
+pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
+    tonic::include_file_descriptor_set!("proto_descriptor");
 
 #[derive(clap::Parser, Debug)]
 struct Opt {
@@ -23,7 +28,9 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).init();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
 
     let opt = Opt::parse();
 
@@ -39,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("starting server on {}", addr);
 
     let reflection = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(planes::proto::FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
         .build()?;
 
     let cors = tower_http::cors::CorsLayer::new()
@@ -57,7 +64,8 @@ async fn main() -> anyhow::Result<()> {
         // cnable grpc reflection
         .add_service(reflection)
         // add services
-        .add_service(PlanesServer::new(PlanesApp::new(db_pool)))
+        .add_service(PlanesServer::new(PlanesApp::new(db_pool.clone())))
+        .add_service(AirportsServer::new(AirportsApp::new(db_pool)))
         // serve
         .serve_with_incoming(TcpListenerStream::new(listener))
         .await?;

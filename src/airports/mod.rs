@@ -1,11 +1,12 @@
 use std::ops::DerefMut;
 
-use sqlx::PgPool;
+use sqlx::{types::Uuid, PgPool};
 use tonic::{Request, Response, Status};
 
-pub use proto::airports_server::AirportsServer; // what is this? what is airport_server? and AirportsServer? // try to remove
+use crate::proto::flightmngr::{
+    airports_server::Airports, AirportCreate, AirportList, AirportQuery, AirportRead, AirportUpdate,
+};
 
-pub mod proto;
 mod queries;
 
 #[derive(Debug)]
@@ -14,21 +15,19 @@ pub struct AirportsApp {
 }
 
 #[tonic::async_trait]
-impl proto::airports_server::Airports for AirportsApp {
-    async fn list_airports(
-        &self,
-        _request: Request<proto::Empty>,
-    ) -> Result<Response<proto::AirportList>, Status> {
+impl Airports for AirportsApp {
+    async fn list_airports(&self, _request: Request<()>) -> Result<Response<AirportList>, Status> {
         let airports = queries::list_airports(&self.db_pool).await?;
 
-        Ok(Response::new(proto::AirportList { airports }))
+        Ok(Response::new(AirportList { airports }))
     }
 
     async fn get_airport(
         &self,
-        request: Request<proto::IdQuery>,
-    ) -> Result<Response<proto::AirportRead>, Status> {
-        let id = request.into_inner().try_get_uuid()?;
+        request: Request<AirportQuery>,
+    ) -> Result<Response<AirportRead>, Status> {
+        let AirportQuery { id } = request.into_inner();
+        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
 
         let airport = queries::get_airport(&self.db_pool, &id).await?;
 
@@ -37,8 +36,8 @@ impl proto::airports_server::Airports for AirportsApp {
 
     async fn create_airport(
         &self,
-        request: Request<proto::AirportCreate>,
-    ) -> std::result::Result<Response<proto::AirportRead>, Status> {
+        request: Request<AirportCreate>,
+    ) -> std::result::Result<Response<AirportRead>, Status> {
         let airport = queries::create_airport(&self.db_pool, &request.into_inner()).await?;
 
         Ok(Response::new(airport))
@@ -46,21 +45,22 @@ impl proto::airports_server::Airports for AirportsApp {
 
     async fn delete_airport(
         &self,
-        request: Request<proto::IdQuery>,
-    ) -> std::result::Result<Response<proto::Empty>, Status> {
-        let id = request.into_inner().try_get_uuid()?;
+        request: Request<AirportQuery>,
+    ) -> std::result::Result<Response<()>, Status> {
+        let AirportQuery { id } = request.into_inner();
+        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
 
         queries::delete_airport(&self.db_pool, &id).await?;
 
-        Ok(Response::new(proto::Empty {}))
+        Ok(Response::new(()))
     }
 
     async fn update_airport(
         &self,
-        request: Request<proto::AirportUpdate>,
-    ) -> std::result::Result<Response<proto::AirportRead>, Status> {
-        let update = request.into_inner();
-        let id = update.try_get_uuid()?;
+        request: Request<AirportUpdate>,
+    ) -> std::result::Result<Response<AirportRead>, Status> {
+        let AirportUpdate { id, patch } = request.into_inner();
+        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
 
         let mut t = self
             .db_pool
@@ -68,7 +68,7 @@ impl proto::airports_server::Airports for AirportsApp {
             .await
             .map_err(|err| Status::from_error(Box::new(err)))?;
 
-        if let Some(patch) = update.patch {
+        if let Some(patch) = patch {
             if let Some(icao) = patch.icao {
                 queries::update_icao(t.deref_mut(), &id, &icao).await?;
             }

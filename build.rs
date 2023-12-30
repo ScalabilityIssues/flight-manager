@@ -6,7 +6,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .protoc_arg("--experimental_allow_proto3_optional")
         .file_descriptor_set_path(out_dir.join("proto_descriptor.bin"))
-        .compile(&["proto/planes.proto", "proto/airports.proto"], &["proto"])?;
+        .compile(
+            &[
+                "proto/planes.proto",
+                "proto/airports.proto",
+            ],
+            &["proto"],
+        )?;
 
     // rerun if migrations change
     println!("cargo:rerun-if-changed=migrations");

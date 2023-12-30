@@ -2,7 +2,7 @@ use std::error::Error;
 
 use sqlx::{postgres::PgQueryResult, types::Uuid, PgExecutor};
 
-use crate::planes::proto;
+use crate::proto::flightmngr::{PlaneRead, PlaneCreate};
 
 pub enum PlaneQueryError {
     NotFound,
@@ -37,8 +37,8 @@ fn check_affected(res: PgQueryResult) -> Result<(), PlaneQueryError> {
 
 pub async fn list_planes<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     ex: E,
-) -> Result<Vec<proto::PlaneRead>, PlaneQueryError> {
-    let planes = sqlx::query_as!(proto::PlaneRead, "select * from planes")
+) -> Result<Vec<PlaneRead>, PlaneQueryError> {
+    let planes = sqlx::query_as!(PlaneRead, "select * from planes")
         .fetch_all(ex)
         .await?;
 
@@ -48,8 +48,8 @@ pub async fn list_planes<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
 pub async fn get_plane<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     ex: E,
     id: &Uuid,
-) -> Result<proto::PlaneRead, PlaneQueryError> {
-    let plane = sqlx::query_as!(proto::PlaneRead, "select * from planes where id = $1", id)
+) -> Result<PlaneRead, PlaneQueryError> {
+    let plane = sqlx::query_as!(PlaneRead, "select * from planes where id = $1", id)
         .fetch_one(ex)
         .await?;
 
@@ -58,10 +58,10 @@ pub async fn get_plane<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
 
 pub async fn create_plane<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     ex: E,
-    plane: &proto::PlaneCreate,
-) -> Result<proto::PlaneRead, PlaneQueryError> {
+    plane: &PlaneCreate,
+) -> Result<PlaneRead, PlaneQueryError> {
     let plane = sqlx::query_as!(
-        proto::PlaneRead,
+        PlaneRead,
         "insert into planes (id, name, model, cabin_capacity, cargo_capacity_kg) values (gen_random_uuid(), $1, $2, $3, $4) returning *",
         plane.name,
         plane.model,

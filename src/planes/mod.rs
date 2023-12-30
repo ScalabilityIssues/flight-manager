@@ -1,11 +1,12 @@
 use std::ops::DerefMut;
 
-use sqlx::PgPool;
+use sqlx::{types::Uuid, PgPool};
 use tonic::{Request, Response, Status};
 
-pub use proto::planes_server::PlanesServer;
+use crate::proto::flightmngr::{
+    planes_server::Planes, PlaneCreate, PlaneList, PlaneQuery, PlaneRead, PlaneUpdate,
+};
 
-pub mod proto;
 mod queries;
 
 #[derive(Debug)]
@@ -14,21 +15,16 @@ pub struct PlanesApp {
 }
 
 #[tonic::async_trait]
-impl proto::planes_server::Planes for PlanesApp {
-    async fn list_planes(
-        &self,
-        _request: Request<proto::Empty>,
-    ) -> Result<Response<proto::PlaneList>, Status> {
+impl Planes for PlanesApp {
+    async fn list_planes(&self, _request: Request<()>) -> Result<Response<PlaneList>, Status> {
         let planes = queries::list_planes(&self.db_pool).await?;
 
-        Ok(Response::new(proto::PlaneList { planes }))
+        Ok(Response::new(PlaneList { planes }))
     }
 
-    async fn get_plane(
-        &self,
-        request: Request<proto::IdQuery>,
-    ) -> Result<Response<proto::PlaneRead>, Status> {
-        let id = request.into_inner().try_get_uuid()?;
+    async fn get_plane(&self, request: Request<PlaneQuery>) -> Result<Response<PlaneRead>, Status> {
+        let PlaneQuery { id } = request.into_inner();
+        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
 
         let plane = queries::get_plane(&self.db_pool, &id).await?;
 
@@ -37,8 +33,8 @@ impl proto::planes_server::Planes for PlanesApp {
 
     async fn create_plane(
         &self,
-        request: Request<proto::PlaneCreate>,
-    ) -> std::result::Result<Response<proto::PlaneRead>, Status> {
+        request: Request<PlaneCreate>,
+    ) -> std::result::Result<Response<PlaneRead>, Status> {
         let plane = queries::create_plane(&self.db_pool, &request.into_inner()).await?;
 
         Ok(Response::new(plane))
@@ -46,21 +42,22 @@ impl proto::planes_server::Planes for PlanesApp {
 
     async fn delete_plane(
         &self,
-        request: Request<proto::IdQuery>,
-    ) -> std::result::Result<Response<proto::Empty>, Status> {
-        let id = request.into_inner().try_get_uuid()?;
+        request: Request<PlaneQuery>,
+    ) -> std::result::Result<Response<()>, Status> {
+        let PlaneQuery { id } = request.into_inner();
+        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
 
         queries::delete_plane(&self.db_pool, &id).await?;
 
-        Ok(Response::new(proto::Empty {}))
+        Ok(Response::new(()))
     }
 
     async fn update_plane(
         &self,
-        request: Request<proto::PlaneUpdate>,
-    ) -> std::result::Result<Response<proto::PlaneRead>, Status> {
-        let update = request.into_inner();
-        let id = update.try_get_uuid()?;
+        request: Request<PlaneUpdate>,
+    ) -> std::result::Result<Response<PlaneRead>, Status> {
+        let PlaneUpdate { id, patch } = request.into_inner();
+        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
 
         let mut t = self
             .db_pool
@@ -68,7 +65,7 @@ impl proto::planes_server::Planes for PlanesApp {
             .await
             .map_err(|err| Status::from_error(Box::new(err)))?;
 
-        if let Some(patch) = update.patch {
+        if let Some(patch) = patch {
             if let Some(name) = patch.name {
                 queries::update_name(t.deref_mut(), &id, &name).await?;
             }

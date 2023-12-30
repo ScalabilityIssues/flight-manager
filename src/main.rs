@@ -6,15 +6,17 @@ use sqlx::PgPool;
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
+use tower_http::{cors, trace};
+use tracing::Level;
 
-use crate::airports::{AirportsApp, AirportsServer};
-use crate::planes::{PlanesApp, PlanesServer};
+use crate::airports::AirportsApp;
+use crate::planes::PlanesApp;
+use crate::proto::flightmngr::airports_server::AirportsServer;
+use crate::proto::flightmngr::planes_server::PlanesServer;
 
 mod airports;
 mod planes;
-
-pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
-    tonic::include_file_descriptor_set!("proto_descriptor");
+mod proto;
 
 #[derive(clap::Parser, Debug)]
 struct Opt {
@@ -28,9 +30,7 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .init();
+    tracing_subscriber::fmt().init();
 
     let opt = Opt::parse();
 
@@ -46,11 +46,11 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("starting server on {}", addr);
 
     let reflection = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
         .build()?;
 
-    let cors = tower_http::cors::CorsLayer::new()
-        .allow_headers(tower_http::cors::Any)
+    let cors = cors::CorsLayer::new()
+        .allow_headers(cors::Any)
         .allow_methods([http::Method::POST])
         .allow_origin(["http://localhost:3000".parse()?]);
 
@@ -59,7 +59,16 @@ async fn main() -> anyhow::Result<()> {
         .accept_http1(true)
         .timeout(std::time::Duration::from_secs(10))
         .layer(cors)
-        .layer(tower_http::trace::TraceLayer::new_for_grpc())
+        .layer(
+            trace::TraceLayer::new_for_grpc()
+                .make_span_with(
+                    trace::DefaultMakeSpan::new()
+                        .level(Level::INFO)
+                        .include_headers(false),
+                )
+                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
+        )
         .layer(tonic_web::GrpcWebLayer::new())
         // cnable grpc reflection
         .add_service(reflection)

@@ -2,7 +2,7 @@ use std::error::Error;
 
 use sqlx::{postgres::PgQueryResult, types::Uuid, PgExecutor};
 
-use crate::airports::proto;
+use crate::proto::flightmngr::{AirportRead, AirportCreate};
 
 pub enum AirportQueryError {
     NotFound,
@@ -37,8 +37,8 @@ fn check_affected(res: PgQueryResult) -> Result<(), AirportQueryError> {
 
 pub async fn list_airports<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     ex: E,
-) -> Result<Vec<proto::AirportRead>, AirportQueryError> {
-    let airports = sqlx::query_as!(proto::AirportRead, "select * from airports")
+) -> Result<Vec<AirportRead>, AirportQueryError> {
+    let airports = sqlx::query_as!(AirportRead, "select * from airports")
         .fetch_all(ex)
         .await?;
 
@@ -48,9 +48,9 @@ pub async fn list_airports<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
 pub async fn get_airport<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     ex: E,
     id: &Uuid,
-) -> Result<proto::AirportRead, AirportQueryError> {
+) -> Result<AirportRead, AirportQueryError> {
     let airport = sqlx::query_as!(
-        proto::AirportRead,
+        AirportRead,
         "select * from airports where id = $1",
         id
     )
@@ -62,10 +62,10 @@ pub async fn get_airport<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
 
 pub async fn create_airport<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     ex: E,
-    airport: &proto::AirportCreate, // why airport is here and not used inside the function? and rust is not complaining about it?
-) -> Result<proto::AirportRead, AirportQueryError> {
+    airport: &AirportCreate,
+) -> Result<AirportRead, AirportQueryError> {
     let airport = sqlx::query_as!(
-        proto::AirportRead,
+        AirportRead,
         "insert into airports (id, icao, iata, name, country, city) values (gen_random_uuid(), $1, $2, $3, $4, $5) returning *",
         airport.icao,
         airport.iata,

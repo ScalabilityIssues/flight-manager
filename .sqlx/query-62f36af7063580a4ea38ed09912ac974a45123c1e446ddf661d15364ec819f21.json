@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update airports set name = $1 where id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "62f36af7063580a4ea38ed09912ac974a45123c1e446ddf661d15364ec819f21"
+}

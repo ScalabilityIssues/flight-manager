@@ -4,6 +4,7 @@ use anyhow;
 use clap::Parser;
 use sqlx::PgPool;
 use tokio::net::TcpListener;
+use tokio::signal::unix::{signal, SignalKind};
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
 use tower_http::{cors, trace};
@@ -22,7 +23,7 @@ mod proto;
 struct Opt {
     #[clap(env = "DATABASE_URL")]
     db: String,
-    #[clap(long, default_value = "127.0.0.1")]
+    #[clap(long, default_value = "0.0.0.0")]
     ip: IpAddr,
     #[clap(long, default_value = "50051")]
     port: u16,
@@ -61,12 +62,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(cors)
         .layer(
             trace::TraceLayer::new_for_grpc()
-                .make_span_with(
-                    trace::DefaultMakeSpan::new()
-                        .level(Level::INFO)
-                        .include_headers(false),
-                )
-                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(tonic_web::GrpcWebLayer::new())
@@ -76,7 +72,10 @@ async fn main() -> anyhow::Result<()> {
         .add_service(PlanesServer::new(PlanesApp::new(db_pool.clone())))
         .add_service(AirportsServer::new(AirportsApp::new(db_pool)))
         // serve
-        .serve_with_incoming(TcpListenerStream::new(listener))
+        .serve_with_incoming_shutdown(TcpListenerStream::new(listener), async {
+            let _ = signal(SignalKind::terminate()).unwrap().recv().await;
+            tracing::info!("shutting down");
+        })
         .await?;
 
     Ok(())

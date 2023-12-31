@@ -7,7 +7,7 @@ use tokio::net::TcpListener;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
-use tower_http::{cors, trace};
+use tower_http::trace;
 use tracing::Level;
 
 use crate::airports::AirportsApp;
@@ -50,22 +50,14 @@ async fn main() -> anyhow::Result<()> {
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
         .build()?;
 
-    let cors = cors::CorsLayer::new()
-        .allow_headers(cors::Any)
-        .allow_methods([http::Method::POST])
-        .allow_origin(["http://localhost:3000".parse()?]);
-
     Server::builder()
         // configure the server
-        .accept_http1(true)
         .timeout(std::time::Duration::from_secs(10))
-        .layer(cors)
         .layer(
             trace::TraceLayer::new_for_grpc()
                 .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
         )
-        .layer(tonic_web::GrpcWebLayer::new())
         // cnable grpc reflection
         .add_service(reflection)
         // add services

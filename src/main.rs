@@ -1,7 +1,5 @@
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 
-use anyhow;
-use clap::Parser;
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 use tokio::signal::unix::{signal, SignalKind};
@@ -16,26 +14,17 @@ use crate::proto::flightmngr::airports_server::AirportsServer;
 use crate::proto::flightmngr::planes_server::PlanesServer;
 
 mod airports;
+mod config;
 mod planes;
 mod proto;
 
-#[derive(clap::Parser, Debug)]
-struct Opt {
-    #[clap(env = "DATABASE_URL")]
-    db: String,
-    #[clap(long, default_value = "0.0.0.0")]
-    ip: IpAddr,
-    #[clap(long, default_value = "50051")]
-    port: u16,
-}
-
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let opt = Opt::parse();
+    let opt = envy::from_env::<config::Options>()?;
 
-    let db_pool = PgPool::connect(&opt.db).await?;
+    let db_pool = PgPool::connect(&opt.database_url).await?;
 
     // run migrations
     tracing::info!("running migrations");

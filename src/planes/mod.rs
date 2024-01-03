@@ -1,10 +1,11 @@
 use std::ops::DerefMut;
 
-use sqlx::{types::Uuid, PgPool};
+use sqlx::PgPool;
 use tonic::{Request, Response, Status};
 
-use crate::proto::flightmngr::{
-    planes_server::Planes, PlaneCreate, PlaneList, PlaneQuery, PlaneRead, PlaneUpdate,
+use crate::{
+    parse::{parse_id, parse_update_paths},
+    proto::flightmngr::{planes_server::Planes, Plane, PlaneList, PlaneQuery, PlaneUpdate},
 };
 
 mod queries;
@@ -22,9 +23,9 @@ impl Planes for PlanesApp {
         Ok(Response::new(PlaneList { planes }))
     }
 
-    async fn get_plane(&self, request: Request<PlaneQuery>) -> Result<Response<PlaneRead>, Status> {
+    async fn get_plane(&self, request: Request<PlaneQuery>) -> Result<Response<Plane>, Status> {
         let PlaneQuery { id } = request.into_inner();
-        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
+        let id = parse_id(id)?;
 
         let plane = queries::get_plane(&self.db_pool, &id).await?;
 
@@ -33,8 +34,8 @@ impl Planes for PlanesApp {
 
     async fn create_plane(
         &self,
-        request: Request<PlaneCreate>,
-    ) -> std::result::Result<Response<PlaneRead>, Status> {
+        request: Request<Plane>,
+    ) -> std::result::Result<Response<Plane>, Status> {
         let plane = queries::create_plane(&self.db_pool, &request.into_inner()).await?;
 
         Ok(Response::new(plane))
@@ -45,7 +46,7 @@ impl Planes for PlanesApp {
         request: Request<PlaneQuery>,
     ) -> std::result::Result<Response<()>, Status> {
         let PlaneQuery { id } = request.into_inner();
-        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
+        let id = parse_id(id)?;
 
         queries::delete_plane(&self.db_pool, &id).await?;
 
@@ -55,9 +56,15 @@ impl Planes for PlanesApp {
     async fn update_plane(
         &self,
         request: Request<PlaneUpdate>,
-    ) -> std::result::Result<Response<PlaneRead>, Status> {
-        let PlaneUpdate { id, patch } = request.into_inner();
-        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
+    ) -> std::result::Result<Response<Plane>, Status> {
+        let PlaneUpdate {
+            id,
+            update,
+            update_mask,
+        } = request.into_inner();
+        let id = parse_id(id)?;
+        let update_paths = parse_update_paths(update_mask)?;
+        let update = update.unwrap_or_default();
 
         let mut t = self
             .db_pool
@@ -65,18 +72,22 @@ impl Planes for PlanesApp {
             .await
             .map_err(|err| Status::from_error(Box::new(err)))?;
 
-        if let Some(patch) = patch {
-            if let Some(name) = patch.name {
-                queries::update_name(t.deref_mut(), &id, &name).await?;
-            }
-            if let Some(model) = patch.model {
-                queries::update_model(t.deref_mut(), &id, &model).await?;
-            }
-            if let Some(cabin_capacity) = patch.cabin_capacity {
-                queries::update_cabin_cap(t.deref_mut(), &id, cabin_capacity).await?;
-            }
-            if let Some(cargo_capacity_kg) = patch.cargo_capacity_kg {
-                queries::update_cargo_cap(t.deref_mut(), &id, cargo_capacity_kg).await?;
+        for path in update_paths {
+            match path.as_str() {
+                "name" => queries::update_name(t.deref_mut(), &id, &update.name).await?,
+                "model" => queries::update_model(t.deref_mut(), &id, &update.model).await?,
+                "cabin_capacity" => {
+                    queries::update_cabin_cap(t.deref_mut(), &id, update.cabin_capacity).await?
+                }
+                "cargo_capacity_kg" => {
+                    queries::update_cargo_cap(t.deref_mut(), &id, update.cargo_capacity_kg).await?
+                }
+                _ => {
+                    return Err(Status::invalid_argument(format!(
+                        "'update_mask' contains invalid path '{}'",
+                        path
+                    )));
+                }
             }
         }
 

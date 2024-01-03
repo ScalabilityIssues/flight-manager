@@ -1,10 +1,13 @@
 use std::ops::DerefMut;
 
-use sqlx::{types::Uuid, PgPool};
+use sqlx::PgPool;
 use tonic::{Request, Response, Status};
 
-use crate::proto::flightmngr::{
-    airports_server::Airports, AirportCreate, AirportList, AirportQuery, AirportRead, AirportUpdate,
+use crate::{
+    parse::{parse_id, parse_update_paths},
+    proto::flightmngr::{
+        airports_server::Airports, Airport, AirportList, AirportQuery, AirportUpdate,
+    },
 };
 
 mod queries;
@@ -25,9 +28,9 @@ impl Airports for AirportsApp {
     async fn get_airport(
         &self,
         request: Request<AirportQuery>,
-    ) -> Result<Response<AirportRead>, Status> {
+    ) -> Result<Response<Airport>, Status> {
         let AirportQuery { id } = request.into_inner();
-        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
+        let id = parse_id(id)?;
 
         let airport = queries::get_airport(&self.db_pool, &id).await?;
 
@@ -36,8 +39,8 @@ impl Airports for AirportsApp {
 
     async fn create_airport(
         &self,
-        request: Request<AirportCreate>,
-    ) -> std::result::Result<Response<AirportRead>, Status> {
+        request: Request<Airport>,
+    ) -> std::result::Result<Response<Airport>, Status> {
         let airport = queries::create_airport(&self.db_pool, &request.into_inner()).await?;
 
         Ok(Response::new(airport))
@@ -48,7 +51,7 @@ impl Airports for AirportsApp {
         request: Request<AirportQuery>,
     ) -> std::result::Result<Response<()>, Status> {
         let AirportQuery { id } = request.into_inner();
-        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
+        let id = parse_id(id)?;
 
         queries::delete_airport(&self.db_pool, &id).await?;
 
@@ -58,9 +61,15 @@ impl Airports for AirportsApp {
     async fn update_airport(
         &self,
         request: Request<AirportUpdate>,
-    ) -> std::result::Result<Response<AirportRead>, Status> {
-        let AirportUpdate { id, patch } = request.into_inner();
-        let id = Uuid::try_parse(&id).map_err(|_| Status::invalid_argument("id"))?;
+    ) -> std::result::Result<Response<Airport>, Status> {
+        let AirportUpdate {
+            id,
+            update,
+            update_mask,
+        } = request.into_inner();
+        let id = parse_id(id)?;
+        let update_paths = parse_update_paths(update_mask)?;
+        let update = update.unwrap_or_default();
 
         let mut t = self
             .db_pool
@@ -68,21 +77,19 @@ impl Airports for AirportsApp {
             .await
             .map_err(|err| Status::from_error(Box::new(err)))?;
 
-        if let Some(patch) = patch {
-            if let Some(icao) = patch.icao {
-                queries::update_icao(t.deref_mut(), &id, &icao).await?;
-            }
-            if let Some(iata) = patch.iata {
-                queries::update_iata(t.deref_mut(), &id, &iata).await?;
-            }
-            if let Some(name) = patch.name {
-                queries::update_name(t.deref_mut(), &id, &name).await?;
-            }
-            if let Some(country) = patch.country {
-                queries::update_country(t.deref_mut(), &id, &country).await?;
-            }
-            if let Some(city) = patch.city {
-                queries::update_city(t.deref_mut(), &id, &city).await?;
+        for path in update_paths {
+            match path.as_str() {
+                "icao" => queries::update_icao(t.deref_mut(), &id, &update.icao).await?,
+                "iata" => queries::update_iata(t.deref_mut(), &id, &update.iata).await?,
+                "name" => queries::update_name(t.deref_mut(), &id, &update.name).await?,
+                "country" => queries::update_country(t.deref_mut(), &id, &update.country).await?,
+                "city" => queries::update_city(t.deref_mut(), &id, &update.city).await?,
+                _ => {
+                    return Err(Status::invalid_argument(format!(
+                        "'update_mask' contains invalid path '{}'",
+                        path
+                    )))
+                }
             }
         }
 

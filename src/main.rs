@@ -9,8 +9,10 @@ use tower_http::trace;
 use tracing::Level;
 
 use crate::airports::AirportsApp;
+use crate::flights::FlightsApp;
 use crate::planes::PlanesApp;
 use crate::proto::flightmngr::airports_server::AirportsServer;
+use crate::proto::flightmngr::flights_server::FlightsServer;
 use crate::proto::flightmngr::planes_server::PlanesServer;
 
 mod airports;
@@ -19,6 +21,7 @@ mod db;
 mod parse;
 mod planes;
 mod proto;
+mod flights;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -53,7 +56,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(reflection)
         // add services
         .add_service(PlanesServer::new(PlanesApp::new(db_pool.clone())))
-        .add_service(AirportsServer::new(AirportsApp::new(db_pool)))
+        .add_service(AirportsServer::new(AirportsApp::new(db_pool.clone())))
+        .add_service(FlightsServer::new(FlightsApp::new(db_pool)))
         // serve
         .serve_with_incoming_shutdown(TcpListenerStream::new(listener), async {
             let _ = signal(SignalKind::terminate()).unwrap().recv().await;

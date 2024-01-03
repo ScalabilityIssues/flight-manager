@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &[
                 "proto/planes.proto",
                 "proto/airports.proto",
+                "proto/flights.proto",
             ],
             &["proto"],
         )?;

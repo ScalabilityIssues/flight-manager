@@ -38,7 +38,7 @@ impl Planes for PlanesApp {
 
     async fn get_plane(&self, request: Request<PlaneQuery>) -> Result<Response<Plane>, Status> {
         let PlaneQuery { id } = request.into_inner();
-        let id = parse_id(id)?;
+        let id = parse_id(&id)?;
 
         let plane = queries::get_plane(&self.db_pool, &id).await?.into();
 
@@ -75,7 +75,7 @@ impl Planes for PlanesApp {
         request: Request<PlaneQuery>,
     ) -> std::result::Result<Response<()>, Status> {
         let PlaneQuery { id } = request.into_inner();
-        let id = parse_id(id)?;
+        let id = parse_id(&id)?;
 
         queries::delete_plane(&self.db_pool, &id).await?;
 
@@ -91,7 +91,7 @@ impl Planes for PlanesApp {
             update,
             update_mask,
         } = request.into_inner();
-        let id = parse_id(id)?;
+        let id = parse_id(&id)?;
         let update_paths = parse_update_paths(update_mask)?;
         let update = update.unwrap_or_default();
 

@@ -52,6 +52,7 @@ pub async fn create_airport<'a>(
     Ok(airport)
 }
 
+
 pub async fn delete_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<()> {
     let res = sqlx::query!("delete from airports where id = $1", id)
         .execute(ex)

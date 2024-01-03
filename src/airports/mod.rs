@@ -44,7 +44,7 @@ impl Airports for AirportsApp {
         request: Request<AirportQuery>,
     ) -> Result<Response<Airport>, Status> {
         let AirportQuery { id } = request.into_inner();
-        let id = parse_id(id)?;
+        let id = parse_id(&id)?;
 
         let airport = queries::get_airport(&self.db_pool, &id).await?.into();
 
@@ -76,7 +76,7 @@ impl Airports for AirportsApp {
         request: Request<AirportQuery>,
     ) -> std::result::Result<Response<()>, Status> {
         let AirportQuery { id } = request.into_inner();
-        let id = parse_id(id)?;
+        let id = parse_id(&id)?;
 
         queries::delete_airport(&self.db_pool, &id).await?;
 
@@ -92,7 +92,7 @@ impl Airports for AirportsApp {
             update,
             update_mask,
         } = request.into_inner();
-        let id = parse_id(id)?;
+        let id = parse_id(&id)?;
         let update_paths = parse_update_paths(update_mask)?;
         let update = update.unwrap_or_default();
 

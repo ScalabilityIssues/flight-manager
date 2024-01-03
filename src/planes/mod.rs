@@ -15,10 +15,23 @@ pub struct PlanesApp {
     db_pool: PgPool,
 }
 
+impl From<queries::Plane> for Plane {
+    fn from(plane: queries::Plane) -> Self {
+        Self {
+            id: plane.id.to_string(),
+            name: plane.name,
+            model: plane.model,
+            cabin_capacity: plane.cabin_capacity,
+            cargo_capacity_kg: plane.cargo_capacity_kg,
+        }
+    }
+}
+
 #[tonic::async_trait]
 impl Planes for PlanesApp {
     async fn list_planes(&self, _request: Request<()>) -> Result<Response<PlaneList>, Status> {
         let planes = queries::list_planes(&self.db_pool).await?;
+        let planes = planes.into_iter().map(Into::into).collect();
 
         Ok(Response::new(PlaneList { planes }))
     }
@@ -27,7 +40,7 @@ impl Planes for PlanesApp {
         let PlaneQuery { id } = request.into_inner();
         let id = parse_id(id)?;
 
-        let plane = queries::get_plane(&self.db_pool, &id).await?;
+        let plane = queries::get_plane(&self.db_pool, &id).await?.into();
 
         Ok(Response::new(plane))
     }
@@ -36,7 +49,23 @@ impl Planes for PlanesApp {
         &self,
         request: Request<Plane>,
     ) -> std::result::Result<Response<Plane>, Status> {
-        let plane = queries::create_plane(&self.db_pool, &request.into_inner()).await?;
+        let Plane {
+            id: _,
+            name,
+            model,
+            cabin_capacity,
+            cargo_capacity_kg,
+        } = request.into_inner();
+
+        let plane = queries::create_plane(
+            &self.db_pool,
+            name,
+            model,
+            cabin_capacity,
+            cargo_capacity_kg,
+        )
+        .await?
+        .into();
 
         Ok(Response::new(plane))
     }
@@ -91,7 +120,7 @@ impl Planes for PlanesApp {
             }
         }
 
-        let plane = queries::get_plane(t.deref_mut(), &id).await?;
+        let plane = queries::get_plane(t.deref_mut(), &id).await?.into();
 
         t.commit()
             .await

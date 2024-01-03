@@ -1,8 +1,16 @@
 use sqlx::{types::Uuid, PgExecutor};
 
-use crate::{db::QueryError, proto::flightmngr::Plane};
+use crate::db::QueryError;
 
 type Result<T> = std::result::Result<T, crate::db::QueryError>;
+
+pub struct Plane {
+    pub id: Uuid,
+    pub name: String,
+    pub model: String,
+    pub cabin_capacity: i32,
+    pub cargo_capacity_kg: i32,
+}
 
 pub async fn list_planes<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Plane>> {
     let planes = sqlx::query_as!(Plane, "select * from planes")
@@ -20,14 +28,20 @@ pub async fn get_plane<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Plane> 
     Ok(plane)
 }
 
-pub async fn create_plane<'a>(ex: impl PgExecutor<'a>, plane: &Plane) -> Result<Plane> {
+pub async fn create_plane<'a>(
+    ex: impl PgExecutor<'a>,
+    name: String,
+    model: String,
+    cabin_cap: i32,
+    cargo_cap_kg: i32,
+) -> Result<Plane> {
     let plane = sqlx::query_as!(
         Plane,
         "insert into planes (id, name, model, cabin_capacity, cargo_capacity_kg) values (gen_random_uuid(), $1, $2, $3, $4) returning *",
-        plane.name,
-        plane.model,
-        plane.cabin_capacity,
-        plane.cargo_capacity_kg
+        name,
+        model,
+        cabin_cap,
+        cargo_cap_kg
     )
     .fetch_one(ex)
     .await?;

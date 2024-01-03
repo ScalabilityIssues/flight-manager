@@ -1,8 +1,17 @@
 use sqlx::{types::Uuid, PgExecutor};
 
-use crate::{db::QueryError, proto::flightmngr::Airport};
+use crate::db::QueryError;
 
 type Result<T> = std::result::Result<T, crate::db::QueryError>;
+
+pub struct Airport {
+    pub id: Uuid,
+    pub icao: String,
+    pub iata: String,
+    pub name: String,
+    pub country: String,
+    pub city: String,
+}
 
 pub async fn list_airports<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Airport>> {
     let airports = sqlx::query_as!(Airport, "select * from airports")
@@ -20,15 +29,22 @@ pub async fn get_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Airpo
     Ok(airport)
 }
 
-pub async fn create_airport<'a>(ex: impl PgExecutor<'a>, airport: &Airport) -> Result<Airport> {
+pub async fn create_airport<'a>(
+    ex: impl PgExecutor<'a>,
+    icao: String,
+    iata: String,
+    name: String,
+    country: String,
+    city: String,
+) -> Result<Airport> {
     let airport = sqlx::query_as!(
         Airport,
         "insert into airports (id, icao, iata, name, country, city) values (gen_random_uuid(), $1, $2, $3, $4, $5) returning *",
-        airport.icao,
-        airport.iata,
-        airport.name,
-        airport.country,
-        airport.city
+        icao,
+        iata,
+        name,
+        country,
+        city
     )
     .fetch_one(ex)
     .await?;

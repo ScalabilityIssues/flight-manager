@@ -17,10 +17,24 @@ pub struct AirportsApp {
     db_pool: PgPool,
 }
 
+impl From<queries::Airport> for Airport {
+    fn from(airport: queries::Airport) -> Self {
+        Self {
+            id: airport.id.to_string(),
+            icao: airport.icao,
+            iata: airport.iata,
+            name: airport.name,
+            country: airport.country,
+            city: airport.city,
+        }
+    }
+}
+
 #[tonic::async_trait]
 impl Airports for AirportsApp {
     async fn list_airports(&self, _request: Request<()>) -> Result<Response<AirportList>, Status> {
         let airports = queries::list_airports(&self.db_pool).await?;
+        let airports = airports.into_iter().map(Into::into).collect();
 
         Ok(Response::new(AirportList { airports }))
     }
@@ -32,7 +46,7 @@ impl Airports for AirportsApp {
         let AirportQuery { id } = request.into_inner();
         let id = parse_id(id)?;
 
-        let airport = queries::get_airport(&self.db_pool, &id).await?;
+        let airport = queries::get_airport(&self.db_pool, &id).await?.into();
 
         Ok(Response::new(airport))
     }
@@ -41,7 +55,18 @@ impl Airports for AirportsApp {
         &self,
         request: Request<Airport>,
     ) -> std::result::Result<Response<Airport>, Status> {
-        let airport = queries::create_airport(&self.db_pool, &request.into_inner()).await?;
+        let Airport {
+            id: _,
+            icao,
+            iata,
+            name,
+            country,
+            city,
+        } = request.into_inner();
+
+        let airport = queries::create_airport(&self.db_pool, icao, iata, name, country, city)
+            .await?
+            .into();
 
         Ok(Response::new(airport))
     }
@@ -93,7 +118,7 @@ impl Airports for AirportsApp {
             }
         }
 
-        let airport = queries::get_airport(t.deref_mut(), &id).await?;
+        let airport = queries::get_airport(t.deref_mut(), &id).await?.into();
 
         t.commit()
             .await

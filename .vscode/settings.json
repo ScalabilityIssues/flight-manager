@@ -1,0 +1,13 @@
+{
+    "rust-analyzer.server.extraEnv": {
+        "DATABASE_URL": "postgres://postgres:pwd@localhost:5432/"
+    },
+    "protoc": {
+        "options": [
+            "--proto_path=proto/"
+        ]
+    },
+    "terminal.integrated.env.linux": {
+        "DATABASE_URL": "postgres://postgres:pwd@localhost:5432/"
+    }
+}

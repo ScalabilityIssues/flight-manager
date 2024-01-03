@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update flights set status = $1 where id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "64459da5cf904f519e033f284064b64dc4dc2fc1919cd30ea526ff37a1d9a386"
+}

@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select * from flights where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "plane_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "origin_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "destination_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "departure_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "arrival_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "departure_gate",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "arrival_gate",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "status",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5ac54c96e4543a4b376d14c83a54b03ed33a6af3ac8a0d3d20fc8584eb8384cf"
+}

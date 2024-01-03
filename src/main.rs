@@ -15,6 +15,7 @@ use crate::proto::flightmngr::planes_server::PlanesServer;
 
 mod airports;
 mod config;
+mod db;
 mod planes;
 mod proto;
 

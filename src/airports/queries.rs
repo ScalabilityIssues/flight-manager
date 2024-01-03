@@ -1,71 +1,28 @@
-use std::error::Error;
+use sqlx::{types::Uuid, PgExecutor};
 
-use sqlx::{postgres::PgQueryResult, types::Uuid, PgExecutor};
+use crate::{db::QueryError, proto::flightmngr::Airport};
 
-use crate::proto::flightmngr::{AirportRead, AirportCreate};
+type Result<T> = std::result::Result<T, crate::db::QueryError>;
 
-pub enum AirportQueryError {
-    NotFound,
-    Other(Box<dyn Error + Send + Sync + 'static>),
-}
-
-impl From<sqlx::Error> for AirportQueryError {
-    fn from(err: sqlx::Error) -> Self {
-        match err {
-            sqlx::Error::RowNotFound => AirportQueryError::NotFound,
-            _ => AirportQueryError::Other(Box::new(err)),
-        }
-    }
-}
-
-impl From<AirportQueryError> for tonic::Status {
-    fn from(err: AirportQueryError) -> Self {
-        match err {
-            AirportQueryError::NotFound => tonic::Status::not_found("airport"),
-            AirportQueryError::Other(err) => tonic::Status::from_error(err),
-        }
-    }
-}
-
-fn check_affected(res: PgQueryResult) -> Result<(), AirportQueryError> {
-    if res.rows_affected() == 0 {
-        Err(AirportQueryError::NotFound)
-    } else {
-        Ok(())
-    }
-}
-
-pub async fn list_airports<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-) -> Result<Vec<AirportRead>, AirportQueryError> {
-    let airports = sqlx::query_as!(AirportRead, "select * from airports")
+pub async fn list_airports<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Airport>> {
+    let airports = sqlx::query_as!(Airport, "select * from airports")
         .fetch_all(ex)
         .await?;
 
     Ok(airports)
 }
 
-pub async fn get_airport<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-) -> Result<AirportRead, AirportQueryError> {
-    let airport = sqlx::query_as!(
-        AirportRead,
-        "select * from airports where id = $1",
-        id
-    )
-    .fetch_one(ex)
-    .await?;
+pub async fn get_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Airport> {
+    let airport = sqlx::query_as!(Airport, "select * from airports where id = $1", id)
+        .fetch_one(ex)
+        .await?;
 
     Ok(airport)
 }
 
-pub async fn create_airport<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    airport: &AirportCreate,
-) -> Result<AirportRead, AirportQueryError> {
+pub async fn create_airport<'a>(ex: impl PgExecutor<'a>, airport: &Airport) -> Result<Airport> {
     let airport = sqlx::query_as!(
-        AirportRead,
+        Airport,
         "insert into airports (id, icao, iata, name, country, city) values (gen_random_uuid(), $1, $2, $3, $4, $5) returning *",
         airport.icao,
         airport.iata,
@@ -79,58 +36,39 @@ pub async fn create_airport<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     Ok(airport)
 }
 
-pub async fn delete_airport<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-) -> Result<(), AirportQueryError> {
+pub async fn delete_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<()> {
     let res = sqlx::query!("delete from airports where id = $1", id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_icao<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-    icao: &str,
-) -> Result<(), AirportQueryError> {
+pub async fn update_icao<'a>(ex: impl PgExecutor<'a>, id: &Uuid, icao: &str) -> Result<()> {
     let res = sqlx::query!("update airports set icao = $1 where id = $2", icao, id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_iata<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-    iata: &str,
-) -> Result<(), AirportQueryError> {
+pub async fn update_iata<'a>(ex: impl PgExecutor<'a>, id: &Uuid, iata: &str) -> Result<()> {
     let res = sqlx::query!("update airports set iata = $1 where id = $2", iata, id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_name<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-    name: &str,
-) -> Result<(), AirportQueryError> {
+pub async fn update_name<'a>(ex: impl PgExecutor<'a>, id: &Uuid, name: &str) -> Result<()> {
     let res = sqlx::query!("update airports set name = $1 where id = $2", name, id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_country<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-    country: &str,
-) -> Result<(), AirportQueryError> {
+pub async fn update_country<'a>(ex: impl PgExecutor<'a>, id: &Uuid, country: &str) -> Result<()> {
     let res = sqlx::query!(
         "update airports set country = $1 where id = $2",
         country,
@@ -139,17 +77,13 @@ pub async fn update_country<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     .execute(ex)
     .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_city<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-    city: &str,
-) -> Result<(), AirportQueryError> {
+pub async fn update_city<'a>(ex: impl PgExecutor<'a>, id: &Uuid, city: &str) -> Result<()> {
     let res = sqlx::query!("update airports set city = $1 where id = $2", city, id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }

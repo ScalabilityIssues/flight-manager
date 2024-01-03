@@ -1,67 +1,28 @@
-use std::error::Error;
+use sqlx::{types::Uuid, PgExecutor};
 
-use sqlx::{postgres::PgQueryResult, types::Uuid, PgExecutor};
+use crate::{db::QueryError, proto::flightmngr::Plane};
 
-use crate::proto::flightmngr::{PlaneRead, PlaneCreate};
+type Result<T> = std::result::Result<T, crate::db::QueryError>;
 
-pub enum PlaneQueryError {
-    NotFound,
-    Other(Box<dyn Error + Send + Sync + 'static>),
-}
-
-impl From<sqlx::Error> for PlaneQueryError {
-    fn from(err: sqlx::Error) -> Self {
-        match err {
-            sqlx::Error::RowNotFound => PlaneQueryError::NotFound,
-            _ => PlaneQueryError::Other(Box::new(err)),
-        }
-    }
-}
-
-impl From<PlaneQueryError> for tonic::Status {
-    fn from(err: PlaneQueryError) -> Self {
-        match err {
-            PlaneQueryError::NotFound => tonic::Status::not_found("plane"),
-            PlaneQueryError::Other(err) => tonic::Status::from_error(err),
-        }
-    }
-}
-
-fn check_affected(res: PgQueryResult) -> Result<(), PlaneQueryError> {
-    if res.rows_affected() == 0 {
-        Err(PlaneQueryError::NotFound)
-    } else {
-        Ok(())
-    }
-}
-
-pub async fn list_planes<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-) -> Result<Vec<PlaneRead>, PlaneQueryError> {
-    let planes = sqlx::query_as!(PlaneRead, "select * from planes")
+pub async fn list_planes<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Plane>> {
+    let planes = sqlx::query_as!(Plane, "select * from planes")
         .fetch_all(ex)
         .await?;
 
     Ok(planes)
 }
 
-pub async fn get_plane<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-) -> Result<PlaneRead, PlaneQueryError> {
-    let plane = sqlx::query_as!(PlaneRead, "select * from planes where id = $1", id)
+pub async fn get_plane<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Plane> {
+    let plane = sqlx::query_as!(Plane, "select * from planes where id = $1", id)
         .fetch_one(ex)
         .await?;
 
     Ok(plane)
 }
 
-pub async fn create_plane<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    plane: &PlaneCreate,
-) -> Result<PlaneRead, PlaneQueryError> {
+pub async fn create_plane<'a>(ex: impl PgExecutor<'a>, plane: &Plane) -> Result<Plane> {
     let plane = sqlx::query_as!(
-        PlaneRead,
+        Plane,
         "insert into planes (id, name, model, cabin_capacity, cargo_capacity_kg) values (gen_random_uuid(), $1, $2, $3, $4) returning *",
         plane.name,
         plane.model,
@@ -74,46 +35,35 @@ pub async fn create_plane<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     Ok(plane)
 }
 
-pub async fn delete_plane<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-) -> Result<(), PlaneQueryError> {
+pub async fn delete_plane<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<()> {
     let res = sqlx::query!("delete from planes where id = $1", id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_name<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-    name: &str,
-) -> Result<(), PlaneQueryError> {
+pub async fn update_name<'a>(ex: impl PgExecutor<'a>, id: &Uuid, name: &str) -> Result<()> {
     let res = sqlx::query!("update planes set name = $1 where id = $2", name, id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_model<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
-    id: &Uuid,
-    model: &str,
-) -> Result<(), PlaneQueryError> {
+pub async fn update_model<'a>(ex: impl PgExecutor<'a>, id: &Uuid, model: &str) -> Result<()> {
     let res = sqlx::query!("update planes set model = $1 where id = $2", model, id)
         .execute(ex)
         .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_cabin_cap<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
+pub async fn update_cabin_cap<'a>(
+    ex: impl PgExecutor<'a>,
     id: &Uuid,
     cabin_capacity: i32,
-) -> Result<(), PlaneQueryError> {
+) -> Result<()> {
     let res = sqlx::query!(
         "update planes set cabin_capacity = $1 where id = $2",
         cabin_capacity,
@@ -122,14 +72,14 @@ pub async fn update_cabin_cap<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     .execute(ex)
     .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }
 
-pub async fn update_cargo_cap<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
-    ex: E,
+pub async fn update_cargo_cap<'a>(
+    ex: impl PgExecutor<'a>,
     id: &Uuid,
     cargo_capacity: i32,
-) -> Result<(), PlaneQueryError> {
+) -> Result<()> {
     let res = sqlx::query!(
         "update planes set cargo_capacity_kg = $1 where id = $2",
         cargo_capacity,
@@ -138,5 +88,5 @@ pub async fn update_cargo_cap<'e, 'c: 'e, E: 'e + PgExecutor<'c>>(
     .execute(ex)
     .await?;
 
-    check_affected(res)
+    QueryError::ensure_single_affected(res)
 }

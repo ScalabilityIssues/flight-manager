@@ -12,4 +12,7 @@
 ### Execution
 
 1. `docker compose up -d`
-1. `DATABASE_URL=postgres://flight-mngr:xd@localhost:5432 cargo run`
+1. execute the migrations with `cargo sqlx migrate run`
+1. `cargo run`
+
+**NOTICE**: The first and second commands should be executed only the first time

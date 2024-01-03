@@ -21,8 +21,8 @@ create table airports (
 create table flights (
   id uuid primary key,
   plane_id uuid not null references planes(id),
-  origin uuid not null references airports(id),
-  destination uuid not null references airports(id),
+  origin_id uuid not null references airports(id),
+  destination_id uuid not null references airports(id),
   departure_time timestamp with time zone not null,
   arrival_time timestamp with time zone not null,
   departure_gate varchar not null,

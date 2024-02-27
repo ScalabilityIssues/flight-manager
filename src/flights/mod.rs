@@ -1,14 +1,18 @@
-use std::ops::DerefMut;
-
-use prost_types::Timestamp;
 use sqlx::PgPool;
 use tonic::{Request, Response, Status};
 
-use crate::parse::{parse_id, parse_timestamp, parse_update_paths};
+use crate::datautils::{parse_id, parse_timestamp};
+use crate::proto::flightmngr::flight_status_event::Event;
 use crate::proto::flightmngr::{
-    flights_server::Flights, Flight, FlightList, FlightQuery, FlightUpdate,
+    flights_server::Flights, CreateFlightRequest, Flight, GetFlightRequest, ListFlightsRequest,
+    ListFlightsResponse, SearchFlightsRequest, UpdateFlightRequest,
+};
+use crate::proto::flightmngr::{
+    FlightCancelled, FlightDelayed, FlightGateArrival, FlightGateDeparture, FlightStatusEvent,
 };
 
+mod data;
+mod map;
 mod queries;
 
 #[derive(Debug)]
@@ -16,61 +20,57 @@ pub struct FlightsApp {
     db_pool: PgPool,
 }
 
-impl From<queries::Flight> for Flight {
-    fn from(flight: queries::Flight) -> Self {
-        Self {
-            id: flight.id.to_string(),
-            plane_id: flight.plane_id.to_string(),
-            origin_id: flight.origin_id.to_string(),
-            destination_id: flight.destination_id.to_string(),
-            departure_time: Some(Timestamp {
-                seconds: flight.departure_time.unix_timestamp(),
-                nanos: flight.departure_time.nanosecond() as i32,
-            }),
-            arrival_time: Some(Timestamp {
-                seconds: flight.arrival_time.unix_timestamp(),
-                nanos: flight.arrival_time.nanosecond() as i32,
-            }),
-            departure_gate: flight.departure_gate,
-            arrival_gate: flight.arrival_gate,
-            status: flight.status,
-        }
-    }
-}
-
 #[tonic::async_trait]
 impl Flights for FlightsApp {
-    async fn list_flights(&self, _request: Request<()>) -> Result<Response<FlightList>, Status> {
-        let flights = queries::list_flights(&self.db_pool).await?;
-        let flights = flights.into_iter().map(Into::into).collect();
+    async fn list_flights(
+        &self,
+        request: Request<ListFlightsRequest>,
+    ) -> Result<Response<ListFlightsResponse>, Status> {
+        let ListFlightsRequest { include_cancelled } = request.into_inner();
 
-        Ok(Response::new(FlightList { flights }))
+        let flights = data::list_flights(&self.db_pool, include_cancelled).await?;
+
+        let flights = flights.map(Into::into).collect();
+        Ok(Response::new(ListFlightsResponse { flights }))
     }
 
-    async fn get_flight(&self, request: Request<FlightQuery>) -> Result<Response<Flight>, Status> {
-        let FlightQuery { id } = request.into_inner();
+    async fn search_flights(
+        &self,
+        request: Request<SearchFlightsRequest>,
+    ) -> Result<Response<ListFlightsResponse>, Status> {
+        let SearchFlightsRequest {
+            origin_id,
+            destination_id,
+            departure_day,
+        } = request.into_inner();
+
+        todo!()
+    }
+
+    async fn get_flight(
+        &self,
+        request: Request<GetFlightRequest>,
+    ) -> Result<Response<Flight>, Status> {
+        let GetFlightRequest { id } = request.into_inner();
         let id = parse_id(&id)?;
 
-        let flight = queries::get_flight(&self.db_pool, &id).await?.into();
+        let flight = data::get_flight(&self.db_pool, id).await?;
 
-        Ok(Response::new(flight))
+        Ok(Response::new(flight.into()))
     }
 
     async fn create_flight(
         &self,
-        request: Request<Flight>,
+        request: Request<CreateFlightRequest>,
     ) -> std::result::Result<Response<Flight>, Status> {
         let Flight {
-            id: _,
             plane_id,
             origin_id,
             destination_id,
             departure_time,
             arrival_time,
-            departure_gate,
-            arrival_gate,
-            status,
-        } = request.into_inner();
+            ..
+        } = request.into_inner().flight.unwrap_or_default();
 
         let plane_id = parse_id(&plane_id)?;
         let origin_id = parse_id(&origin_id)?;
@@ -78,16 +78,13 @@ impl Flights for FlightsApp {
         let departure_time = parse_timestamp(&departure_time)?;
         let arrival_time = parse_timestamp(&arrival_time)?;
 
-        let flight = queries::create_flight(
+        let flight = data::create_flight(
             &self.db_pool,
             plane_id,
             origin_id,
             destination_id,
             departure_time,
             arrival_time,
-            departure_gate,
-            arrival_gate,
-            status,
         )
         .await?
         .into();
@@ -95,95 +92,40 @@ impl Flights for FlightsApp {
         Ok(Response::new(flight))
     }
 
-    async fn delete_flight(
-        &self,
-        request: Request<FlightQuery>,
-    ) -> std::result::Result<Response<()>, Status> {
-        let FlightQuery { id } = request.into_inner();
-        let id = parse_id(&id)?;
-
-        queries::delete_flight(&self.db_pool, &id).await?;
-
-        Ok(Response::new(()))
-    }
-
     async fn update_flight(
         &self,
-        request: Request<FlightUpdate>,
+        request: Request<UpdateFlightRequest>,
     ) -> std::result::Result<Response<Flight>, Status> {
-        let FlightUpdate {
-            id,
-            update,
-            update_mask,
-        } = request.into_inner();
+        let UpdateFlightRequest { id, status_event } = request.into_inner();
         let id = parse_id(&id)?;
-        let update_paths = parse_update_paths(update_mask)?;
-        let update = update.unwrap_or_default();
+        let FlightStatusEvent { event, .. } =
+            status_event.ok_or(Status::invalid_argument("'status_event' is required"))?;
+        let event = event.ok_or(Status::invalid_argument("'status_event.event' is required"))?;
 
-        let mut t = self
-            .db_pool
-            .begin()
-            .await
-            .map_err(|err| Status::from_error(Box::new(err)))?;
-
-        let Flight {
-            id: _,
-            plane_id,
-            origin_id,
-            destination_id,
-            departure_time,
-            arrival_time,
-            departure_gate,
-            arrival_gate,
-            status,
-        } = update;
-
-        for path in update_paths {
-            match path.as_str() {
-                "plane_id" => {
-                    let plane_id = parse_id(&plane_id)?;
-                    queries::update_plane_id(t.deref_mut(), &id, &plane_id).await?;
-                }
-                "origin_id" => {
-                    let origin_id = parse_id(&origin_id)?;
-                    queries::update_origin_id(t.deref_mut(), &id, &origin_id).await?;
-                }
-                "destination_id" => {
-                    let destination_id = parse_id(&destination_id)?;
-                    queries::update_destination_id(t.deref_mut(), &id, &destination_id).await?;
-                }
-                "departure_time" => {
-                    let departure_time = parse_timestamp(&departure_time)?;
-                    queries::update_departure_time(t.deref_mut(), &id, &departure_time).await?;
-                }
-                "arrival_time" => {
-                    let arrival_time = parse_timestamp(&arrival_time)?;
-                    queries::update_arrival_time(t.deref_mut(), &id, &arrival_time).await?;
-                }
-                "departure_gate" => {
-                    queries::update_departure_gate(t.deref_mut(), &id, &departure_gate).await?;
-                }
-                "arrival_gate" => {
-                    queries::update_arrival_gate(t.deref_mut(), &id, &arrival_gate).await?;
-                }
-                "status" => queries::update_status(t.deref_mut(), &id, &status).await?,
-
-                _ => {
-                    return Err(Status::invalid_argument(format!(
-                        "'update_mask' contains invalid path '{}'",
-                        path
-                    )))
-                }
+        match event {
+            Event::FlightCancelled(FlightCancelled { reason }) => {
+                queries::add_event_cancelled(&self.db_pool, &id, reason).await?;
             }
-        }
+            Event::FlightDelayed(FlightDelayed {
+                arrival_time,
+                departure_time,
+            }) => {
+                let arrival_time = parse_timestamp(&arrival_time)?;
+                let departure_time = parse_timestamp(&departure_time)?;
+                queries::add_event_delayed(&self.db_pool, &id, &departure_time, &arrival_time)
+                    .await?;
+            }
+            Event::FlightGateDeparture(FlightGateDeparture { gate }) => {
+                queries::add_event_gate_dep_set(&self.db_pool, &id, &gate).await?;
+            }
+            Event::FlightGateArrival(FlightGateArrival { gate }) => {
+                queries::add_event_gate_arr_set(&self.db_pool, &id, &gate).await?;
+            }
+        };
 
-        let flight = queries::get_flight(t.deref_mut(), &id).await?.into();
+        let flight = data::get_flight(&self.db_pool, id).await?;
 
-        t.commit()
-            .await
-            .map_err(|err| Status::from_error(Box::new(err)))?;
-
-        Ok(Response::new(flight))
+        Ok(Response::new(flight.into()))
     }
 }
 

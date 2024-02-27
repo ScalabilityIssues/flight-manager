@@ -11,9 +11,18 @@ pub struct Airport {
     pub name: String,
     pub country: String,
     pub city: String,
+    pub deleted: bool,
 }
 
 pub async fn list_airports<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Airport>> {
+    let airports = sqlx::query_as!(Airport, "select * from airports where not deleted")
+        .fetch_all(ex)
+        .await?;
+
+    Ok(airports)
+}
+
+pub async fn list_airports_with_deleted<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Airport>> {
     let airports = sqlx::query_as!(Airport, "select * from airports")
         .fetch_all(ex)
         .await?;
@@ -52,53 +61,8 @@ pub async fn create_airport<'a>(
     Ok(airport)
 }
 
-
 pub async fn delete_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<()> {
-    let res = sqlx::query!("delete from airports where id = $1", id)
-        .execute(ex)
-        .await?;
-
-    QueryError::ensure_single_affected(res)
-}
-
-pub async fn update_icao<'a>(ex: impl PgExecutor<'a>, id: &Uuid, icao: &str) -> Result<()> {
-    let res = sqlx::query!("update airports set icao = $1 where id = $2", icao, id)
-        .execute(ex)
-        .await?;
-
-    QueryError::ensure_single_affected(res)
-}
-
-pub async fn update_iata<'a>(ex: impl PgExecutor<'a>, id: &Uuid, iata: &str) -> Result<()> {
-    let res = sqlx::query!("update airports set iata = $1 where id = $2", iata, id)
-        .execute(ex)
-        .await?;
-
-    QueryError::ensure_single_affected(res)
-}
-
-pub async fn update_name<'a>(ex: impl PgExecutor<'a>, id: &Uuid, name: &str) -> Result<()> {
-    let res = sqlx::query!("update airports set name = $1 where id = $2", name, id)
-        .execute(ex)
-        .await?;
-
-    QueryError::ensure_single_affected(res)
-}
-
-pub async fn update_country<'a>(ex: impl PgExecutor<'a>, id: &Uuid, country: &str) -> Result<()> {
-    let res = sqlx::query!(
-        "update airports set country = $1 where id = $2",
-        country,
-        id
-    )
-    .execute(ex)
-    .await?;
-
-    QueryError::ensure_single_affected(res)
-}
-
-pub async fn update_city<'a>(ex: impl PgExecutor<'a>, id: &Uuid, city: &str) -> Result<()> {
-    let res = sqlx::query!("update airports set city = $1 where id = $2", city, id)
+    let res = sqlx::query!("update airports set deleted = true where id = $1", id)
         .execute(ex)
         .await?;
 

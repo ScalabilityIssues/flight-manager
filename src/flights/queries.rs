@@ -1,8 +1,6 @@
 use sqlx::types::time::OffsetDateTime;
 use sqlx::{types::Uuid, PgExecutor};
 
-use crate::db::QueryError;
-
 type Result<T> = std::result::Result<T, crate::db::QueryError>;
 
 pub struct Flight {
@@ -12,12 +10,20 @@ pub struct Flight {
     pub destination_id: Uuid,
     pub departure_time: OffsetDateTime,
     pub arrival_time: OffsetDateTime,
-    pub departure_gate: String,
-    pub arrival_gate: String,
-    pub status: String,
 }
 
 pub async fn list_flights<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Flight>> {
+    let flights = sqlx::query_as!(
+        Flight,
+        "select * from flights where id not in (select flight_id from flight_cancellations)"
+    )
+    .fetch_all(ex)
+    .await?;
+
+    Ok(flights)
+}
+
+pub async fn list_flights_with_cancelled(ex: impl PgExecutor<'_>) -> Result<Vec<Flight>> {
     let flights = sqlx::query_as!(Flight, "select * from flights")
         .fetch_all(ex)
         .await?;
@@ -40,21 +46,15 @@ pub async fn create_flight<'a>(
     destination_id: Uuid,
     departure_time: OffsetDateTime,
     arrival_time: OffsetDateTime,
-    departure_gate: String,
-    arrival_gate: String,
-    status: String,
 ) -> Result<Flight> {
     let flight = sqlx::query_as!(
         Flight,
-        "insert into flights (id, plane_id, origin_id, destination_id, departure_time, arrival_time, departure_gate, arrival_gate, status) values (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8) returning *",
+        "insert into flights (id, plane_id, origin_id, destination_id, departure_time, arrival_time) values (gen_random_uuid(), $1, $2, $3, $4, $5) returning *",
         plane_id,
         origin_id,
         destination_id,
         departure_time,
-        arrival_time,
-        departure_gate,
-        arrival_gate,
-        status
+        arrival_time
     )
     .fetch_one(ex)
     .await?;
@@ -62,131 +62,151 @@ pub async fn create_flight<'a>(
     Ok(flight)
 }
 
-pub async fn delete_flight<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<()> {
-    let res = sqlx::query!("delete from flights where id = $1", id)
-        .execute(ex)
-        .await?;
-
-    QueryError::ensure_single_affected(res)
+pub struct EventCancelled {
+    pub flight_id: Uuid,
+    pub timestamp: OffsetDateTime,
+    pub reason: Option<String>,
 }
 
-pub async fn update_plane_id<'a>(
+pub async fn get_event_cancelled<'a>(
     ex: impl PgExecutor<'a>,
-    id: &Uuid,
-    plane_id: &Uuid,
-) -> Result<()> {
-    let res = sqlx::query!(
-        "update flights set plane_id = $1 where id = $2",
-        plane_id,
+    id: &[Uuid],
+) -> Result<Vec<EventCancelled>> {
+    let events = sqlx::query_as!(
+        EventCancelled,
+        "select flight_cancellations.* from flight_cancellations join unnest($1::uuid[]) as U(ids) on flight_id = ids",
         id
     )
-    .execute(ex)
+    .fetch_all(ex)
     .await?;
 
-    QueryError::ensure_single_affected(res)
+    Ok(events)
 }
 
-pub async fn update_origin_id<'a>(
+pub async fn add_event_cancelled<'a>(
     ex: impl PgExecutor<'a>,
     id: &Uuid,
-    origin_id: &Uuid,
-) -> Result<()> {
-    let res = sqlx::query!(
-        "update flights set origin_id = $1 where id = $2",
-        origin_id,
-        id
+    reason: String,
+) -> Result<EventCancelled> {
+    let e = sqlx::query_as!(
+        EventCancelled,
+        "insert into flight_cancellations (flight_id, reason) values ($1, $2) returning *",
+        id,
+        reason
     )
-    .execute(ex)
+    .fetch_one(ex)
     .await?;
 
-    QueryError::ensure_single_affected(res)
+    Ok(e)
 }
 
-pub async fn update_destination_id<'a>(
+pub struct EventDelayed {
+    pub flight_id: Uuid,
+    pub timestamp: OffsetDateTime,
+    pub departure_time: OffsetDateTime,
+    pub arrival_time: OffsetDateTime,
+}
+
+pub async fn get_event_delayed<'a>(
     ex: impl PgExecutor<'a>,
-    id: &Uuid,
-    destination_id: &Uuid,
-) -> Result<()> {
-    let res = sqlx::query!(
-        "update flights set destination_id = $1 where id = $2",
-        destination_id,
+    id: &[Uuid],
+) -> Result<Vec<EventDelayed>> {
+    let events = sqlx::query_as!(
+        EventDelayed,
+        "select flight_delays.* from flight_delays join unnest($1::uuid[]) as U(ids) on flight_id = ids",
         id
-    )
-    .execute(ex)
-    .await?;
+    ).fetch_all(ex).await?;
 
-    QueryError::ensure_single_affected(res)
+    Ok(events)
 }
 
-// understand how to handle departure and arrival time in rust
-pub async fn update_departure_time<'a>(
+pub async fn add_event_delayed<'a>(
     ex: impl PgExecutor<'a>,
     id: &Uuid,
     departure_time: &OffsetDateTime,
-) -> Result<()> {
-    let res = sqlx::query!(
-        "update flights set departure_time = $1 where id = $2",
-        departure_time,
-        id
-    )
-    .execute(ex)
-    .await?;
-
-    QueryError::ensure_single_affected(res)
-}
-
-pub async fn update_arrival_time<'a>(
-    ex: impl PgExecutor<'a>,
-    id: &Uuid,
     arrival_time: &OffsetDateTime,
-) -> Result<()> {
-    let res = sqlx::query!(
-        "update flights set arrival_time = $1 where id = $2",
-        arrival_time,
-        id
+) -> Result<EventDelayed> {
+    let e = sqlx::query_as!(
+        EventDelayed,
+        "insert into flight_delays (flight_id, departure_time, arrival_time) values ($1, $2, $3) returning *",
+        id,
+        departure_time,
+        arrival_time
     )
-    .execute(ex)
+    .fetch_one(ex)
     .await?;
 
-    QueryError::ensure_single_affected(res)
+    Ok(e)
 }
 
-pub async fn update_departure_gate<'a>(
+pub struct EventGateDepartureSet {
+    pub flight_id: Uuid,
+    pub timestamp: OffsetDateTime,
+    pub gate: String,
+}
+
+pub async fn get_event_gate_dep<'a>(
+    ex: impl PgExecutor<'a>,
+    id: &[Uuid],
+) -> Result<Vec<EventGateDepartureSet>> {
+    let events = sqlx::query_as!(
+        EventGateDepartureSet,
+        "select flight_departure_gates.* from flight_departure_gates join unnest($1::uuid[]) as U(ids) on flight_id = ids",
+        id
+    ).fetch_all(ex).await?;
+
+    Ok(events)
+}
+
+pub async fn add_event_gate_dep_set<'a>(
     ex: impl PgExecutor<'a>,
     id: &Uuid,
-    departure_gate: &str,
-) -> Result<()> {
-    let res = sqlx::query!(
-        "update flights set departure_gate = $1 where id = $2",
-        departure_gate,
-        id
+    gate: &str,
+) -> Result<EventGateDepartureSet> {
+    let e = sqlx::query_as!(
+        EventGateDepartureSet,
+        "insert into flight_departure_gates (flight_id, gate) values ($1, $2) returning *",
+        id,
+        gate
     )
-    .execute(ex)
+    .fetch_one(ex)
     .await?;
 
-    QueryError::ensure_single_affected(res)
+    Ok(e)
 }
 
-pub async fn update_arrival_gate<'a>(
+pub struct EventGateArrivalSet {
+    pub flight_id: Uuid,
+    pub timestamp: OffsetDateTime,
+    pub gate: String,
+}
+
+pub async fn get_event_gate_arr<'a>(
+    ex: impl PgExecutor<'a>,
+    id: &[Uuid],
+) -> Result<Vec<EventGateArrivalSet>> {
+    let events = sqlx::query_as!(
+        EventGateArrivalSet,
+        "select flight_arrival_gates.* from flight_arrival_gates join unnest($1::uuid[]) as U(ids) on flight_id = ids",
+        id
+    ).fetch_all(ex).await?;
+
+    Ok(events)
+}
+
+pub async fn add_event_gate_arr_set<'a>(
     ex: impl PgExecutor<'a>,
     id: &Uuid,
-    arrival_gate: &str,
-) -> Result<()> {
-    let res = sqlx::query!(
-        "update flights set arrival_gate = $1 where id = $2",
-        arrival_gate,
-        id
+    gate: &str,
+) -> Result<EventGateArrivalSet> {
+    let e = sqlx::query_as!(
+        EventGateArrivalSet,
+        "insert into flight_arrival_gates (flight_id, gate) values ($1, $2) returning *",
+        id,
+        gate
     )
-    .execute(ex)
+    .fetch_one(ex)
     .await?;
 
-    QueryError::ensure_single_affected(res)
-}
-
-pub async fn update_status<'a>(ex: impl PgExecutor<'a>, id: &Uuid, status: &str) -> Result<()> {
-    let res = sqlx::query!("update flights set status = $1 where id = $2", status, id)
-        .execute(ex)
-        .await?;
-
-    QueryError::ensure_single_affected(res)
+    Ok(e)
 }

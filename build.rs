@@ -6,13 +6,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .protoc_arg("--experimental_allow_proto3_optional")
         .file_descriptor_set_path(out_dir.join("proto_descriptor.bin"))
+        .build_client(false)
+        .build_transport(false)
         .compile(
             &[
-                "proto/planes.proto",
-                "proto/airports.proto",
-                "proto/flights.proto",
-            ],
-            &["proto"],
+                "proto/flightmngr/planes.proto",
+                "proto/flightmngr/airports.proto",
+                "proto/flightmngr/flights.proto",
+                ],
+            &["proto", "proto/googleapis"],
         )?;
 
     // rerun if migrations change

@@ -58,9 +58,14 @@ impl Planes for PlanesApp {
             ..
         } = request.into_inner().plane.unwrap_or_default();
 
-        let plane = queries::create_plane(&self.db_pool, model, cabin_capacity, cargo_capacity_kg)
-            .await?
-            .into();
+        let plane = queries::create_plane(
+            &self.db_pool,
+            model,
+            cabin_capacity as i32,
+            cargo_capacity_kg as i32,
+        )
+        .await?
+        .into();
 
         Ok(Response::new(plane))
     }

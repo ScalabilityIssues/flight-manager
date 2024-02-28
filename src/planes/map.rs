@@ -6,8 +6,8 @@ impl From<queries::Plane> for proto::flightmngr::Plane {
         Self {
             id: plane.id.to_string(),
             model: plane.model,
-            cabin_capacity: plane.cabin_capacity,
-            cargo_capacity_kg: plane.cargo_capacity_kg,
+            cabin_capacity: plane.cabin_capacity as u32,
+            cargo_capacity_kg: plane.cargo_capacity_kg as u32,
             deleted: plane.deleted,
         }
     }

@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into flight_arrival_gates (flight_id, gate) values ($1, $2) returning *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "flight_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "gate",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3162546dfd51343913f5e5df3c485daab850b7b3921490168ae9d91043ef1bdf"
+}

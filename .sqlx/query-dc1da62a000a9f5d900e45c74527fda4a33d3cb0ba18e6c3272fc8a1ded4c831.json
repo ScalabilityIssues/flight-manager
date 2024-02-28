@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into flight_cancellations (flight_id, reason) values ($1, $2) returning *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "flight_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "reason",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "dc1da62a000a9f5d900e45c74527fda4a33d3cb0ba18e6c3272fc8a1ded4c831"
+}

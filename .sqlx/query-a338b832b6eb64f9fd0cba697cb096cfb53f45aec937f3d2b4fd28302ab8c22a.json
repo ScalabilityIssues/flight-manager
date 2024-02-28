@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "insert into flights (id, plane_id, origin_id, destination_id, departure_time, arrival_time, departure_gate, arrival_gate, status) values (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8) returning *",
+  "query": "insert into flights (id, plane_id, origin_id, destination_id, departure_time, arrival_time) values (gen_random_uuid(), $1, $2, $3, $4, $5) returning *",
   "describe": {
     "columns": [
       {
@@ -32,21 +32,6 @@
         "ordinal": 5,
         "name": "arrival_time",
         "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 6,
-        "name": "departure_gate",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 7,
-        "name": "arrival_gate",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 8,
-        "name": "status",
-        "type_info": "Varchar"
       }
     ],
     "parameters": {
@@ -55,10 +40,7 @@
         "Uuid",
         "Uuid",
         "Timestamptz",
-        "Timestamptz",
-        "Varchar",
-        "Varchar",
-        "Varchar"
+        "Timestamptz"
       ]
     },
     "nullable": [
@@ -67,11 +49,8 @@
       false,
       false,
       false,
-      false,
-      false,
-      false,
       false
     ]
   },
-  "hash": "889f649dcabc4f2b2970068836a7f46c28b924616b53f027c1819ef378910a0b"
+  "hash": "a338b832b6eb64f9fd0cba697cb096cfb53f45aec937f3d2b4fd28302ab8c22a"
 }

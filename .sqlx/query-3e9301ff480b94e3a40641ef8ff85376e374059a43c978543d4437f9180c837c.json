@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select * from flights",
+  "query": "select * from flights where id not in (select flight_id from flight_cancellations)",
   "describe": {
     "columns": [
       {
@@ -46,5 +46,5 @@
       false
     ]
   },
-  "hash": "3813543b722a2e5c4f803b706200a9e0c31c6901a3e5966933cf64268e15d1a5"
+  "hash": "3e9301ff480b94e3a40641ef8ff85376e374059a43c978543d4437f9180c837c"
 }

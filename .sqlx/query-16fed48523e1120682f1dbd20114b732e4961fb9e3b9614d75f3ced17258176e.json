@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select * from planes where id = $1",
+  "query": "insert into planes (id, model, cabin_capacity, cargo_capacity_kg) values (gen_random_uuid(), $1, $2, $3) returning *",
   "describe": {
     "columns": [
       {
@@ -31,7 +31,9 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Varchar",
+        "Int4",
+        "Int4"
       ]
     },
     "nullable": [
@@ -42,5 +44,5 @@
       false
     ]
   },
-  "hash": "77b5491be31a7977d718700b6711f45852f45da1f76530d6d790837e879af4b1"
+  "hash": "16fed48523e1120682f1dbd20114b732e4961fb9e3b9614d75f3ced17258176e"
 }

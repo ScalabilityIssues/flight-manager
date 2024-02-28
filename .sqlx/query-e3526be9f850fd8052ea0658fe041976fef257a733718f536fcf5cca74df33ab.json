@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select * from planes where id = $1",
+  "query": "select * from airports where not deleted",
   "describe": {
     "columns": [
       {
@@ -10,31 +10,41 @@
       },
       {
         "ordinal": 1,
-        "name": "model",
+        "name": "icao",
         "type_info": "Varchar"
       },
       {
         "ordinal": 2,
-        "name": "cabin_capacity",
-        "type_info": "Int4"
+        "name": "iata",
+        "type_info": "Varchar"
       },
       {
         "ordinal": 3,
-        "name": "cargo_capacity_kg",
-        "type_info": "Int4"
+        "name": "name",
+        "type_info": "Varchar"
       },
       {
         "ordinal": 4,
+        "name": "country",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "city",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
         "name": "deleted",
         "type_info": "Bool"
       }
     ],
     "parameters": {
-      "Left": [
-        "Uuid"
-      ]
+      "Left": []
     },
     "nullable": [
+      false,
+      false,
       false,
       false,
       false,
@@ -42,5 +52,5 @@
       false
     ]
   },
-  "hash": "77b5491be31a7977d718700b6711f45852f45da1f76530d6d790837e879af4b1"
+  "hash": "e3526be9f850fd8052ea0658fe041976fef257a733718f536fcf5cca74df33ab"
 }

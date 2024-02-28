@@ -32,6 +32,11 @@
         "ordinal": 5,
         "name": "city",
         "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "deleted",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -44,6 +49,7 @@
       ]
     },
     "nullable": [
+      false,
       false,
       false,
       false,

@@ -1,50 +1,42 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select * from flights",
+  "query": "insert into flight_delays (flight_id, departure_time, arrival_time) values ($1, $2, $3) returning *",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "flight_id",
         "type_info": "Uuid"
       },
       {
         "ordinal": 1,
-        "name": "plane_id",
-        "type_info": "Uuid"
+        "name": "timestamp",
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 2,
-        "name": "origin_id",
-        "type_info": "Uuid"
-      },
-      {
-        "ordinal": 3,
-        "name": "destination_id",
-        "type_info": "Uuid"
-      },
-      {
-        "ordinal": 4,
         "name": "departure_time",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 5,
+        "ordinal": 3,
         "name": "arrival_time",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
     },
     "nullable": [
-      false,
-      false,
       false,
       false,
       false,
       false
     ]
   },
-  "hash": "3813543b722a2e5c4f803b706200a9e0c31c6901a3e5966933cf64268e15d1a5"
+  "hash": "ad9b84b9b9575ac030abb643dd5f63af01ef386e6477648431dfd9077412d638"
 }

@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select flight_cancellations.* from flight_cancellations join unnest($1::uuid[]) as U(ids) on flight_id = ids",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "flight_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "reason",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "afbe4fab7f3318b7f10494c59158e192c796130f3534b76faaa1386a1054cbaa"
+}

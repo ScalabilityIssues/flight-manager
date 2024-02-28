@@ -10,23 +10,23 @@
       },
       {
         "ordinal": 1,
-        "name": "name",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 2,
         "name": "model",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 3,
+        "ordinal": 2,
         "name": "cabin_capacity",
         "type_info": "Int4"
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "cargo_capacity_kg",
         "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "deleted",
+        "type_info": "Bool"
       }
     ],
     "parameters": {

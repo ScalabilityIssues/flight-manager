@@ -1,15 +1,14 @@
 {
   "db_name": "PostgreSQL",
-  "query": "update airports set city = $1 where id = $2",
+  "query": "update planes set deleted = true where id = $1",
   "describe": {
     "columns": [],
     "parameters": {
       "Left": [
-        "Varchar",
         "Uuid"
       ]
     },
     "nullable": []
   },
-  "hash": "390e23249ff44eddfd4e94053cd0c5bbfaa20e7afa61bf4ead43f89768c437b2"
+  "hash": "b0ec405a621000bac5b669f2c6ee4d24859796f8551b3c85bf5bc97f0998868f"
 }

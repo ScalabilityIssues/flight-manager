@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select flight_departure_gates.* from flight_departure_gates join unnest($1::uuid[]) as U(ids) on flight_id = ids",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "flight_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "gate",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d7c21221d0cba7b38076f1534f836e2bf12b3d20b20d07bf864f1a333424155a"
+}

@@ -32,21 +32,6 @@
         "ordinal": 5,
         "name": "arrival_time",
         "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 6,
-        "name": "departure_gate",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 7,
-        "name": "arrival_gate",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 8,
-        "name": "status",
-        "type_info": "Varchar"
       }
     ],
     "parameters": {
@@ -55,9 +40,6 @@
       ]
     },
     "nullable": [
-      false,
-      false,
-      false,
       false,
       false,
       false,

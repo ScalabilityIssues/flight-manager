@@ -11,6 +11,6 @@ RUN cargo build --release --locked
 
 FROM scratch as runtime
 LABEL org.opencontainers.image.source="https://github.com/ScalabilityIssues/flight-manager"
-COPY --from=builder /app/target/release/flight-mngr /app/flight-mngr
+COPY --from=builder /app/target/release/flightmngr /app/flightmngr
 USER 65534:65534
-ENTRYPOINT [ "/app/flight-mngr" ]
+ENTRYPOINT [ "/app/flightmngr" ]

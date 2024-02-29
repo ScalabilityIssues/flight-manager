@@ -27,16 +27,16 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Setup cargo cache
-      uses: Swatinem/rust-cache@v2
-
     - name: Install Protoc
-      uses: arduino/setup-protoc@v2
+      uses: arduino/setup-protoc@v3
   
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
+
+    - name: Run Migrations
+      run: cargo install sqlx-cli --no-default-features --features postgres && sqlx migrate run
 
     - name: Build
       run: cargo build --all-targets

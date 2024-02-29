@@ -39,9 +39,9 @@ impl Flights for FlightsApp {
         request: Request<SearchFlightsRequest>,
     ) -> Result<Response<ListFlightsResponse>, Status> {
         let SearchFlightsRequest {
-            origin_id,
-            destination_id,
-            departure_day,
+            origin_id: _,
+            destination_id: _,
+            departure_day: _,
         } = request.into_inner();
 
         todo!()

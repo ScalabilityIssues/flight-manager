@@ -1,4 +1,6 @@
-use sqlx::postgres::PgQueryResult;
+use sqlx::{migrate::Migrator, postgres::PgQueryResult};
+
+pub const MIGRATOR: Migrator = sqlx::migrate!();
 
 pub enum QueryError {
     NotFound,

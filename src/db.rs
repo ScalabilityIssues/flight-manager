@@ -5,7 +5,7 @@ pub const MIGRATOR: Migrator = sqlx::migrate!();
 pub enum QueryError {
     NotFound,
     Other(Box<dyn std::error::Error + Send + Sync + 'static>),
-    Unexpected(String),
+    Unexpected(&'static str),
 }
 
 impl From<sqlx::Error> for QueryError {
@@ -32,9 +32,7 @@ impl QueryError {
         match res.rows_affected() {
             0 => Err(QueryError::NotFound),
             1 => Ok(()),
-            _ => Err(QueryError::Unexpected(
-                "unexpected number of rows affected".to_string(),
-            )),
+            _ => Err(QueryError::Unexpected("unexpected number of rows affected")),
         }
     }
 }

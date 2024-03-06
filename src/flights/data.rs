@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-use sqlx::{types::Uuid, PgExecutor};
+use sqlx::{types::Uuid, PgConnection};
 
 use super::queries;
 
@@ -24,8 +24,8 @@ fn group_by_id<T>(list: Vec<T>, id: &'static impl Fn(&T) -> Uuid) -> HashMap<Uui
         .collect()
 }
 
-pub async fn list_flights<'a>(
-    ex: impl PgExecutor<'a> + Copy,
+pub async fn list_flights(
+    ex: &mut PgConnection,
     include_cancelled: bool,
 ) -> Result<impl Iterator<Item = FlightData>> {
     let flights = if include_cancelled {
@@ -59,7 +59,7 @@ pub async fn list_flights<'a>(
     Ok(flights)
 }
 
-pub async fn get_flight<'a>(ex: impl PgExecutor<'a> + Copy, id: Uuid) -> Result<FlightData> {
+pub async fn get_flight(ex: &mut PgConnection, id: Uuid) -> Result<FlightData> {
     let flight = queries::get_flight(ex, &id).await?;
 
     let cancelled = queries::get_event_cancelled(ex, &[id]).await?;
@@ -70,8 +70,8 @@ pub async fn get_flight<'a>(ex: impl PgExecutor<'a> + Copy, id: Uuid) -> Result<
     Ok(FlightData(flight, cancelled, delayed, gate_dep, gate_arr))
 }
 
-pub async fn create_flight<'a>(
-    ex: impl PgExecutor<'a> + Copy,
+pub async fn create_flight(
+    ex: &mut PgConnection,
     plane_id: Uuid,
     origin_id: Uuid,
     destination_id: Uuid,

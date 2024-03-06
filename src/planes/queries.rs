@@ -1,4 +1,4 @@
-use sqlx::{types::Uuid, PgExecutor};
+use sqlx::{types::Uuid, PgConnection};
 
 use crate::db::QueryError;
 
@@ -12,7 +12,7 @@ pub struct Plane {
     pub deleted: bool,
 }
 
-pub async fn list_planes<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Plane>> {
+pub async fn list_planes(ex: &mut PgConnection) -> Result<Vec<Plane>> {
     let planes = sqlx::query_as!(Plane, "select * from planes where not deleted")
         .fetch_all(ex)
         .await?;
@@ -20,7 +20,7 @@ pub async fn list_planes<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Plane>> {
     Ok(planes)
 }
 
-pub async fn list_planes_with_deleted<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Plane>> {
+pub async fn list_planes_with_deleted(ex: &mut PgConnection) -> Result<Vec<Plane>> {
     let planes = sqlx::query_as!(Plane, "select * from planes")
         .fetch_all(ex)
         .await?;
@@ -28,7 +28,7 @@ pub async fn list_planes_with_deleted<'a>(ex: impl PgExecutor<'a>) -> Result<Vec
     Ok(planes)
 }
 
-pub async fn get_plane<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Plane> {
+pub async fn get_plane(ex: &mut PgConnection, id: &Uuid) -> Result<Plane> {
     let plane = sqlx::query_as!(Plane, "select * from planes where id = $1", id)
         .fetch_one(ex)
         .await?;
@@ -36,8 +36,8 @@ pub async fn get_plane<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Plane> 
     Ok(plane)
 }
 
-pub async fn create_plane<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn create_plane(
+    ex: &mut PgConnection,
     model: String,
     cabin_cap: i32,
     cargo_cap_kg: i32,
@@ -55,7 +55,7 @@ pub async fn create_plane<'a>(
     Ok(plane)
 }
 
-pub async fn delete_plane<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<()> {
+pub async fn delete_plane(ex: &mut PgConnection, id: &Uuid) -> Result<()> {
     let res = sqlx::query!("update planes set deleted = true where id = $1", id)
         .execute(ex)
         .await?;

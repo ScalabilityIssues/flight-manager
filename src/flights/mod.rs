@@ -1,7 +1,7 @@
-use sqlx::PgPool;
 use tonic::{Request, Response, Status};
 
 use crate::datautils::{parse_id, parse_timestamp};
+use crate::db::Database;
 use crate::proto::flightmngr::flight_status_event::Event;
 use crate::proto::flightmngr::{
     flights_server::Flights, CreateFlightRequest, Flight, GetFlightRequest, ListFlightsRequest,
@@ -15,9 +15,8 @@ mod data;
 mod map;
 mod queries;
 
-#[derive(Debug)]
 pub struct FlightsApp {
-    db_pool: PgPool,
+    db: Database,
 }
 
 #[tonic::async_trait]
@@ -27,8 +26,9 @@ impl Flights for FlightsApp {
         request: Request<ListFlightsRequest>,
     ) -> Result<Response<ListFlightsResponse>, Status> {
         let ListFlightsRequest { include_cancelled } = request.into_inner();
+        let mut t = self.db.begin().await?;
 
-        let flights = data::list_flights(&self.db_pool, include_cancelled).await?;
+        let flights = data::list_flights(t.get_conn(), include_cancelled).await?;
 
         let flights = flights.map(Into::into).collect();
         Ok(Response::new(ListFlightsResponse { flights }))
@@ -53,8 +53,9 @@ impl Flights for FlightsApp {
     ) -> Result<Response<Flight>, Status> {
         let GetFlightRequest { id } = request.into_inner();
         let id = parse_id(&id)?;
+        let mut t = self.db.begin().await?;
 
-        let flight = data::get_flight(&self.db_pool, id).await?;
+        let flight = data::get_flight(t.get_conn(), id).await?;
 
         Ok(Response::new(flight.into()))
     }
@@ -78,8 +79,10 @@ impl Flights for FlightsApp {
         let departure_time = parse_timestamp(&departure_time)?;
         let arrival_time = parse_timestamp(&arrival_time)?;
 
+        let mut t = self.db.begin().await?;
+
         let flight = data::create_flight(
-            &self.db_pool,
+            t.get_conn(),
             plane_id,
             origin_id,
             destination_id,
@@ -89,6 +92,7 @@ impl Flights for FlightsApp {
         .await?
         .into();
 
+        t.commit().await.or(Err(Status::internal("db error")))?;
         Ok(Response::new(flight))
     }
 
@@ -102,9 +106,11 @@ impl Flights for FlightsApp {
             status_event.ok_or(Status::invalid_argument("'status_event' is required"))?;
         let event = event.ok_or(Status::invalid_argument("'status_event.event' is required"))?;
 
+        let mut t = self.db.begin().await?;
+
         match event {
             Event::FlightCancelled(FlightCancelled { reason }) => {
-                queries::add_event_cancelled(&self.db_pool, &id, reason).await?;
+                queries::add_event_cancelled(t.get_conn(), &id, reason).await?;
             }
             Event::FlightDelayed(FlightDelayed {
                 arrival_time,
@@ -112,25 +118,26 @@ impl Flights for FlightsApp {
             }) => {
                 let arrival_time = parse_timestamp(&arrival_time)?;
                 let departure_time = parse_timestamp(&departure_time)?;
-                queries::add_event_delayed(&self.db_pool, &id, &departure_time, &arrival_time)
+                queries::add_event_delayed(t.get_conn(), &id, &departure_time, &arrival_time)
                     .await?;
             }
             Event::FlightGateDeparture(FlightGateDeparture { gate }) => {
-                queries::add_event_gate_dep_set(&self.db_pool, &id, &gate).await?;
+                queries::add_event_gate_dep_set(t.get_conn(), &id, &gate).await?;
             }
             Event::FlightGateArrival(FlightGateArrival { gate }) => {
-                queries::add_event_gate_arr_set(&self.db_pool, &id, &gate).await?;
+                queries::add_event_gate_arr_set(t.get_conn(), &id, &gate).await?;
             }
         };
 
-        let flight = data::get_flight(&self.db_pool, id).await?;
+        let flight = data::get_flight(t.get_conn(), id).await?;
 
+        t.commit().await.or(Err(Status::internal("db error")))?;
         Ok(Response::new(flight.into()))
     }
 }
 
 impl FlightsApp {
-    pub fn new(db_pool: PgPool) -> Self {
-        Self { db_pool }
+    pub fn new(db: Database) -> Self {
+        Self { db }
     }
 }

@@ -1,5 +1,6 @@
 use sqlx::types::time::OffsetDateTime;
-use sqlx::{types::Uuid, PgExecutor};
+use sqlx::types::Uuid;
+use sqlx::PgConnection;
 
 type Result<T> = std::result::Result<T, crate::db::QueryError>;
 
@@ -12,7 +13,7 @@ pub struct Flight {
     pub arrival_time: OffsetDateTime,
 }
 
-pub async fn list_flights<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Flight>> {
+pub async fn list_flights(ex: &mut PgConnection) -> Result<Vec<Flight>> {
     let flights = sqlx::query_as!(
         Flight,
         "select * from flights where id not in (select flight_id from flight_cancellations)"
@@ -23,7 +24,7 @@ pub async fn list_flights<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Flight>> {
     Ok(flights)
 }
 
-pub async fn list_flights_with_cancelled(ex: impl PgExecutor<'_>) -> Result<Vec<Flight>> {
+pub async fn list_flights_with_cancelled(ex: &mut PgConnection) -> Result<Vec<Flight>> {
     let flights = sqlx::query_as!(Flight, "select * from flights")
         .fetch_all(ex)
         .await?;
@@ -31,7 +32,7 @@ pub async fn list_flights_with_cancelled(ex: impl PgExecutor<'_>) -> Result<Vec<
     Ok(flights)
 }
 
-pub async fn get_flight<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Flight> {
+pub async fn get_flight(ex: &mut PgConnection, id: &Uuid) -> Result<Flight> {
     let flight = sqlx::query_as!(Flight, "select * from flights where id = $1", id)
         .fetch_one(ex)
         .await?;
@@ -39,8 +40,8 @@ pub async fn get_flight<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Flight
     Ok(flight)
 }
 
-pub async fn create_flight<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn create_flight(
+    ex: &mut PgConnection,
     plane_id: Uuid,
     origin_id: Uuid,
     destination_id: Uuid,
@@ -68,8 +69,8 @@ pub struct EventCancelled {
     pub reason: Option<String>,
 }
 
-pub async fn get_event_cancelled<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn get_event_cancelled(
+    ex: &mut PgConnection,
     id: &[Uuid],
 ) -> Result<Vec<EventCancelled>> {
     let events = sqlx::query_as!(
@@ -83,8 +84,8 @@ pub async fn get_event_cancelled<'a>(
     Ok(events)
 }
 
-pub async fn add_event_cancelled<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn add_event_cancelled(
+    ex: &mut PgConnection,
     id: &Uuid,
     reason: String,
 ) -> Result<EventCancelled> {
@@ -107,10 +108,7 @@ pub struct EventDelayed {
     pub arrival_time: OffsetDateTime,
 }
 
-pub async fn get_event_delayed<'a>(
-    ex: impl PgExecutor<'a>,
-    id: &[Uuid],
-) -> Result<Vec<EventDelayed>> {
+pub async fn get_event_delayed(ex: &mut PgConnection, id: &[Uuid]) -> Result<Vec<EventDelayed>> {
     let events = sqlx::query_as!(
         EventDelayed,
         "select flight_delays.* from flight_delays join unnest($1::uuid[]) as U(ids) on flight_id = ids",
@@ -120,8 +118,8 @@ pub async fn get_event_delayed<'a>(
     Ok(events)
 }
 
-pub async fn add_event_delayed<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn add_event_delayed(
+    ex: &mut PgConnection,
     id: &Uuid,
     departure_time: &OffsetDateTime,
     arrival_time: &OffsetDateTime,
@@ -145,8 +143,8 @@ pub struct EventGateDepartureSet {
     pub gate: String,
 }
 
-pub async fn get_event_gate_dep<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn get_event_gate_dep(
+    ex: &mut PgConnection,
     id: &[Uuid],
 ) -> Result<Vec<EventGateDepartureSet>> {
     let events = sqlx::query_as!(
@@ -158,8 +156,8 @@ pub async fn get_event_gate_dep<'a>(
     Ok(events)
 }
 
-pub async fn add_event_gate_dep_set<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn add_event_gate_dep_set(
+    ex: &mut PgConnection,
     id: &Uuid,
     gate: &str,
 ) -> Result<EventGateDepartureSet> {
@@ -181,8 +179,8 @@ pub struct EventGateArrivalSet {
     pub gate: String,
 }
 
-pub async fn get_event_gate_arr<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn get_event_gate_arr(
+    ex: &mut PgConnection,
     id: &[Uuid],
 ) -> Result<Vec<EventGateArrivalSet>> {
     let events = sqlx::query_as!(
@@ -194,8 +192,8 @@ pub async fn get_event_gate_arr<'a>(
     Ok(events)
 }
 
-pub async fn add_event_gate_arr_set<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn add_event_gate_arr_set(
+    ex: &mut PgConnection,
     id: &Uuid,
     gate: &str,
 ) -> Result<EventGateArrivalSet> {

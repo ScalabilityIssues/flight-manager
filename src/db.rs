@@ -1,4 +1,6 @@
-use sqlx::{migrate::Migrator, postgres::PgQueryResult};
+use std::ops::DerefMut;
+
+use sqlx::{migrate::Migrator, postgres::PgQueryResult, PgPool, Postgres};
 
 pub const MIGRATOR: Migrator = sqlx::migrate!();
 
@@ -34,5 +36,37 @@ impl QueryError {
             1 => Ok(()),
             _ => Err(QueryError::Unexpected("unexpected number of rows affected")),
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Database(sqlx::PgPool);
+
+impl Database {
+    pub fn from_pool(pool: PgPool) -> Self {
+        Self(pool)
+    }
+
+    pub async fn begin(&self) -> Result<Transaction<'_>, QueryError> {
+        let t = self.0.begin().await?;
+        Ok(Transaction(t))
+    }
+}
+
+pub struct Transaction<'c>(sqlx::Transaction<'c, Postgres>);
+
+impl<'c> Transaction<'c> {
+    pub async fn commit(self) -> Result<(), QueryError> {
+        self.0.commit().await?;
+        Ok(())
+    }
+
+    pub async fn rollback(self) -> Result<(), QueryError> {
+        self.0.rollback().await?;
+        Ok(())
+    }
+
+    pub fn get_conn(&mut self) -> &mut sqlx::PgConnection {
+        self.0.deref_mut()
     }
 }

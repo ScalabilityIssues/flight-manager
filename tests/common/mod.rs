@@ -17,7 +17,7 @@ pub async fn make_test_client(db: PgPool) -> Result<Clients, Box<dyn std::error:
 
     tokio::spawn(async move {
         let result = Server::builder()
-            .add_routes(flightmngr::build_services(&db))
+            .add_routes(flightmngr::build_services(db))
             .serve_with_incoming(tokio_stream::once(Ok::<_, std::io::Error>(server)))
             .await;
         assert!(result.is_ok());

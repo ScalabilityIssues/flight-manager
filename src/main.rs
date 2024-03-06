@@ -24,7 +24,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     flightmngr::db::MIGRATOR.run(&db_pool).await?;
 
     // build grpc services
-    let services = flightmngr::build_services(&db_pool);
+    let services = flightmngr::build_services(db_pool);
     // build reflection service
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(flightmngr::proto::FILE_DESCRIPTOR_SET)

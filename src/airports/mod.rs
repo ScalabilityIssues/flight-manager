@@ -1,8 +1,8 @@
-use sqlx::PgPool;
 use tonic::{Request, Response, Status};
 
 use crate::{
     datautils::parse_id,
+    db::Database,
     proto::flightmngr::{
         airports_server::Airports, Airport, CreateAirportRequest, DeleteAirportRequest,
         GetAirportRequest, ListAirportsRequest, ListAirportsResponse,
@@ -12,9 +12,8 @@ use crate::{
 mod map;
 mod queries;
 
-#[derive(Debug)]
 pub struct AirportsApp {
-    db_pool: PgPool,
+    db: Database,
 }
 
 #[tonic::async_trait]
@@ -24,11 +23,12 @@ impl Airports for AirportsApp {
         request: Request<ListAirportsRequest>,
     ) -> Result<Response<ListAirportsResponse>, Status> {
         let ListAirportsRequest { show_deleted } = request.into_inner();
+        let mut t = self.db.begin().await?;
 
         let airports = if show_deleted {
-            queries::list_airports_with_deleted(&self.db_pool).await?
+            queries::list_airports_with_deleted(t.get_conn()).await?
         } else {
-            queries::list_airports(&self.db_pool).await?
+            queries::list_airports(t.get_conn()).await?
         };
 
         let airports = airports.into_iter().map(Into::into).collect();
@@ -41,8 +41,9 @@ impl Airports for AirportsApp {
     ) -> Result<Response<Airport>, Status> {
         let GetAirportRequest { id } = request.into_inner();
         let id = parse_id(&id)?;
+        let mut t = self.db.begin().await?;
 
-        let airport = queries::get_airport(&self.db_pool, &id).await?.into();
+        let airport = queries::get_airport(t.get_conn(), &id).await?.into();
 
         Ok(Response::new(airport))
     }
@@ -59,11 +60,13 @@ impl Airports for AirportsApp {
             city,
             ..
         } = request.into_inner().airport.unwrap_or_default();
+        let mut t = self.db.begin().await?;
 
-        let airport = queries::create_airport(&self.db_pool, icao, iata, name, country, city)
+        let airport = queries::create_airport(t.get_conn(), icao, iata, name, country, city)
             .await?
             .into();
 
+        t.commit().await?;
         Ok(Response::new(airport))
     }
 
@@ -73,15 +76,17 @@ impl Airports for AirportsApp {
     ) -> std::result::Result<Response<()>, Status> {
         let DeleteAirportRequest { id } = request.into_inner();
         let id = parse_id(&id)?;
+        let mut t = self.db.begin().await?;
 
-        queries::delete_airport(&self.db_pool, &id).await?;
+        queries::delete_airport(t.get_conn(), &id).await?;
 
+        t.commit().await?;
         Ok(Response::new(()))
     }
 }
 
 impl AirportsApp {
-    pub fn new(db_pool: PgPool) -> Self {
-        Self { db_pool }
+    pub fn new(db: Database) -> Self {
+        Self { db }
     }
 }

@@ -1,4 +1,4 @@
-use sqlx::{types::Uuid, PgExecutor};
+use sqlx::{types::Uuid, PgConnection};
 
 use crate::db::QueryError;
 
@@ -14,7 +14,7 @@ pub struct Airport {
     pub deleted: bool,
 }
 
-pub async fn list_airports<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Airport>> {
+pub async fn list_airports(ex: &mut PgConnection) -> Result<Vec<Airport>> {
     let airports = sqlx::query_as!(Airport, "select * from airports where not deleted")
         .fetch_all(ex)
         .await?;
@@ -22,7 +22,7 @@ pub async fn list_airports<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Airport>> 
     Ok(airports)
 }
 
-pub async fn list_airports_with_deleted<'a>(ex: impl PgExecutor<'a>) -> Result<Vec<Airport>> {
+pub async fn list_airports_with_deleted(ex: &mut PgConnection) -> Result<Vec<Airport>> {
     let airports = sqlx::query_as!(Airport, "select * from airports")
         .fetch_all(ex)
         .await?;
@@ -30,7 +30,7 @@ pub async fn list_airports_with_deleted<'a>(ex: impl PgExecutor<'a>) -> Result<V
     Ok(airports)
 }
 
-pub async fn get_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Airport> {
+pub async fn get_airport(ex: &mut PgConnection, id: &Uuid) -> Result<Airport> {
     let airport = sqlx::query_as!(Airport, "select * from airports where id = $1", id)
         .fetch_one(ex)
         .await?;
@@ -38,8 +38,8 @@ pub async fn get_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<Airpo
     Ok(airport)
 }
 
-pub async fn create_airport<'a>(
-    ex: impl PgExecutor<'a>,
+pub async fn create_airport(
+    ex: &mut PgConnection,
     icao: String,
     iata: String,
     name: String,
@@ -61,7 +61,7 @@ pub async fn create_airport<'a>(
     Ok(airport)
 }
 
-pub async fn delete_airport<'a>(ex: impl PgExecutor<'a>, id: &Uuid) -> Result<()> {
+pub async fn delete_airport(ex: &mut PgConnection, id: &Uuid) -> Result<()> {
     let res = sqlx::query!("update airports set deleted = true where id = $1", id)
         .execute(ex)
         .await?;

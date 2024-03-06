@@ -1,3 +1,4 @@
+use db::Database;
 use sqlx::PgPool;
 use tonic::transport::server::Routes;
 
@@ -15,9 +16,11 @@ pub mod flights;
 pub mod planes;
 pub mod proto;
 
-pub fn build_services(db_pool: &PgPool) -> Routes {
+pub fn build_services(db_pool: PgPool) -> Routes {
+    let db = Database::from_pool(db_pool);
+
     Routes::default()
-        .add_service(PlanesServer::new(PlanesApp::new(db_pool.clone())))
-        .add_service(AirportsServer::new(AirportsApp::new(db_pool.clone())))
-        .add_service(FlightsServer::new(FlightsApp::new(db_pool.clone())))
+        .add_service(PlanesServer::new(PlanesApp::new(db.clone())))
+        .add_service(AirportsServer::new(AirportsApp::new(db.clone())))
+        .add_service(FlightsServer::new(FlightsApp::new(db.clone())))
 }

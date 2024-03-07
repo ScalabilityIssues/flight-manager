@@ -5,7 +5,7 @@ use sqlx::{types::Uuid, PgConnection};
 
 use super::queries;
 
-type Result<T> = std::result::Result<T, crate::db::QueryError>;
+type Result<T> = std::result::Result<T, crate::db::DatabaseError>;
 
 pub struct FlightData(
     pub queries::Flight,

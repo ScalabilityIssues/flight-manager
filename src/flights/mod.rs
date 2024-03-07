@@ -92,7 +92,7 @@ impl Flights for FlightsApp {
         .await?
         .into();
 
-        t.commit().await.or(Err(Status::internal("db error")))?;
+        t.commit().await?;
         Ok(Response::new(flight))
     }
 
@@ -131,7 +131,7 @@ impl Flights for FlightsApp {
 
         let flight = data::get_flight(t.get_conn(), id).await?;
 
-        t.commit().await.or(Err(Status::internal("db error")))?;
+        t.commit().await?;
         Ok(Response::new(flight.into()))
     }
 }

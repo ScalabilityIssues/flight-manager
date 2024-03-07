@@ -2,7 +2,7 @@ use sqlx::types::time::OffsetDateTime;
 use sqlx::types::Uuid;
 use sqlx::PgConnection;
 
-type Result<T> = std::result::Result<T, crate::db::QueryError>;
+type Result<T> = std::result::Result<T, crate::db::DatabaseError>;
 
 pub struct Flight {
     pub id: Uuid,

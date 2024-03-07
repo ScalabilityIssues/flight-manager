@@ -1,8 +1,8 @@
 use sqlx::{types::Uuid, PgConnection};
 
-use crate::db::QueryError;
+use crate::db::DatabaseError;
 
-type Result<T> = std::result::Result<T, crate::db::QueryError>;
+type Result<T> = std::result::Result<T, crate::db::DatabaseError>;
 
 pub struct Plane {
     pub id: Uuid,
@@ -60,5 +60,5 @@ pub async fn delete_plane(ex: &mut PgConnection, id: &Uuid) -> Result<()> {
         .execute(ex)
         .await?;
 
-    QueryError::ensure_single_affected(res)
+    DatabaseError::ensure_single_affected(res)
 }

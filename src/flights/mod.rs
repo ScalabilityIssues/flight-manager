@@ -76,8 +76,8 @@ impl Flights for FlightsApp {
         let plane_id = parse_id(&plane_id)?;
         let origin_id = parse_id(&origin_id)?;
         let destination_id = parse_id(&destination_id)?;
-        let departure_time = parse_timestamp(&departure_time)?;
-        let arrival_time = parse_timestamp(&arrival_time)?;
+        let departure_time = parse_timestamp(departure_time)?;
+        let arrival_time = parse_timestamp(arrival_time)?;
 
         let mut t = self.db.begin().await?;
 
@@ -116,8 +116,8 @@ impl Flights for FlightsApp {
                 arrival_time,
                 departure_time,
             }) => {
-                let arrival_time = parse_timestamp(&arrival_time)?;
-                let departure_time = parse_timestamp(&departure_time)?;
+                let arrival_time = parse_timestamp(arrival_time)?;
+                let departure_time = parse_timestamp(departure_time)?;
                 queries::add_event_delayed(t.get_conn(), &id, &departure_time, &arrival_time)
                     .await?;
             }

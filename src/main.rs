@@ -13,10 +13,13 @@ mod config;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
 
     let opt = envy::from_env::<config::Options>()?;
 
+    tracing::info!("connecting to database");
     let db_pool = PgPool::connect(&opt.database_url).await?;
 
     // run migrations
@@ -34,13 +37,13 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let address = SocketAddr::new(opt.ip, opt.port);
     let listener = TcpListener::bind(address).await?;
     tracing::info!("starting server on {}", address);
-    
+
     // run server
     Server::builder()
         // configure the server
         .layer(
             trace::TraceLayer::new_for_grpc()
-                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::ERROR))
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
         )
         // add services

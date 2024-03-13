@@ -46,7 +46,7 @@ fn default_airport() -> Airport {
 }
 
 #[sqlx::test]
-async fn test(db: PgPool) {
+async fn creation(db: PgPool) {
     let mut client = common::make_test_client(db).await.unwrap();
 
     let airport1 = client
@@ -87,10 +87,103 @@ async fn test(db: PgPool) {
 
     let r = client
         .flights
-        .get_flight(GetFlightRequest { id: flight.id.clone() })
+        .get_flight(GetFlightRequest {
+            id: flight.id.clone(),
+        })
         .await
         .unwrap()
         .into_inner();
 
     assert_eq!(r, flight);
+}
+
+#[sqlx::test]
+async fn search(db: PgPool) {
+    let mut client = common::make_test_client(db).await.unwrap();
+
+    let airport1 = client
+        .airports
+        .create_airport(CreateAirportRequest {
+            airport: Some(default_airport()),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let airport2 = client
+        .airports
+        .create_airport(CreateAirportRequest {
+            airport: Some(default_airport()),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let plane = client
+        .planes
+        .create_plane(CreatePlaneRequest {
+            plane: Some(default_plane()),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    let flight = client
+        .flights
+        .create_flight(CreateFlightRequest {
+            flight: Some(default_flight(
+                plane.id,
+                airport1.id.clone(),
+                airport2.id.clone(),
+            )),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    // successful search
+    let r = client
+        .flights
+        .search_flights(flightmngr::proto::flightmngr::SearchFlightsRequest {
+            origin_id: airport1.id.clone(),
+            destination_id: airport2.id.clone(),
+            departure_day: Some(Default::default()),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(r.flights.len(), 1);
+    assert_eq!(r.flights[0], flight);
+
+    // unsuccessful search, wrong airports
+    let r = client
+        .flights
+        .search_flights(flightmngr::proto::flightmngr::SearchFlightsRequest {
+            origin_id: airport2.id.clone(),
+            destination_id: airport1.id.clone(),
+            departure_day: Some(Default::default()),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(r.flights.len(), 0);
+
+    // unsuccessful search, wrong date
+    let r = client
+        .flights
+        .search_flights(flightmngr::proto::flightmngr::SearchFlightsRequest {
+            origin_id: airport1.id.clone(),
+            destination_id: airport2.id.clone(),
+            departure_day: Some(prost_types::Timestamp {
+                seconds: 2 * 24 * 3600,
+                nanos: 0,
+            }),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(r.flights.len(), 0);
 }

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 use sqlx::{types::Uuid, PgConnection};
+use time::OffsetDateTime;
 
 use super::queries;
 
@@ -24,15 +25,10 @@ fn group_by_id<T>(list: Vec<T>, id: &'static impl Fn(&T) -> Uuid) -> HashMap<Uui
         .collect()
 }
 
-pub async fn list_flights(
+pub async fn load_flights_data(
     ex: &mut PgConnection,
-    include_cancelled: bool,
+    flights: Vec<queries::Flight>,
 ) -> Result<impl Iterator<Item = FlightData>> {
-    let flights = if include_cancelled {
-        queries::list_flights_with_cancelled(ex).await?
-    } else {
-        queries::list_flights(ex).await?
-    };
     let ids = flights.iter().map(|f| f.id).collect::<Vec<_>>();
 
     let cancelled = queries::get_event_cancelled(ex, &ids).await?;
@@ -57,6 +53,31 @@ pub async fn list_flights(
     });
 
     Ok(flights)
+}
+
+pub async fn list_flights(
+    ex: &mut PgConnection,
+    include_cancelled: bool,
+) -> Result<impl Iterator<Item = FlightData>> {
+    let flights = if include_cancelled {
+        queries::list_flights_with_cancelled(ex).await?
+    } else {
+        queries::list_flights(ex).await?
+    };
+
+    load_flights_data(ex, flights).await
+}
+
+pub async fn search_flights(
+    ex: &mut PgConnection,
+    origin_airport_id: Uuid,
+    destination_airport_id: Uuid,
+    date: OffsetDateTime,
+) -> Result<impl Iterator<Item = FlightData>> {
+    let flights =
+        queries::search_flights(ex, origin_airport_id, destination_airport_id, date).await?;
+
+    load_flights_data(ex, flights).await
 }
 
 pub async fn get_flight(ex: &mut PgConnection, id: Uuid) -> Result<FlightData> {

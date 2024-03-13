@@ -39,12 +39,22 @@ impl Flights for FlightsApp {
         request: Request<SearchFlightsRequest>,
     ) -> Result<Response<ListFlightsResponse>, Status> {
         let SearchFlightsRequest {
-            origin_id: _,
-            destination_id: _,
-            departure_day: _,
+            origin_id,
+            destination_id,
+            departure_day,
         } = request.into_inner();
 
-        todo!()
+        let origin_id = parse_id(&origin_id)?;
+        let destination_id = parse_id(&destination_id)?;
+        let departure_day = parse_timestamp(departure_day)?;
+
+        let mut t = self.db.begin().await?;
+
+        let flights =
+            data::search_flights(t.get_conn(), origin_id, destination_id, departure_day).await?;
+
+        let flights = flights.map(Into::into).collect();
+        Ok(Response::new(ListFlightsResponse { flights }))
     }
 
     async fn get_flight(

@@ -16,7 +16,8 @@ pub struct Flight {
 pub async fn list_flights(ex: &mut PgConnection) -> Result<Vec<Flight>> {
     let flights = sqlx::query_as!(
         Flight,
-        "select * from flights where id not in (select flight_id from flight_cancellations)"
+        "select * from flights \
+        where id not in (select flight_id from flight_cancellations)"
     )
     .fetch_all(ex)
     .await?;
@@ -32,10 +33,37 @@ pub async fn list_flights_with_cancelled(ex: &mut PgConnection) -> Result<Vec<Fl
     Ok(flights)
 }
 
+pub async fn search_flights(
+    ex: &mut PgConnection,
+    origin_id: Uuid,
+    destination_id: Uuid,
+    departure_day: OffsetDateTime,
+) -> Result<Vec<Flight>> {
+    let flights = sqlx::query_as!(
+        Flight,
+        "select * from flights \
+        where origin_id = $1 and destination_id = $2 \
+        and id not in (select flight_id from flight_cancellations) \
+        and departure_time between $3 and $3 + interval '1 day'",
+        origin_id,
+        destination_id,
+        departure_day
+    )
+    .fetch_all(ex)
+    .await?;
+
+    Ok(flights)
+}
+
 pub async fn get_flight(ex: &mut PgConnection, id: &Uuid) -> Result<Flight> {
-    let flight = sqlx::query_as!(Flight, "select * from flights where id = $1", id)
-        .fetch_one(ex)
-        .await?;
+    let flight = sqlx::query_as!(
+        Flight,
+        "select * from flights \
+        where id = $1",
+        id
+    )
+    .fetch_one(ex)
+    .await?;
 
     Ok(flight)
 }

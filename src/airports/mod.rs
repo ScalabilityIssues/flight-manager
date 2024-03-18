@@ -1,12 +1,9 @@
 use tonic::{Request, Response, Status};
 
-use crate::{
-    datautils::parse_id,
-    db::Database,
-    proto::flightmngr::{
-        airports_server::Airports, Airport, CreateAirportRequest, DeleteAirportRequest,
-        GetAirportRequest, ListAirportsRequest, ListAirportsResponse,
-    },
+use crate::{datautils::parse_id, db::Database};
+use proto::flightmngr::{
+    airports_server::Airports, Airport, CreateAirportRequest, DeleteAirportRequest,
+    GetAirportRequest, ListAirportsRequest, ListAirportsResponse,
 };
 
 mod map;

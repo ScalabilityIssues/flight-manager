@@ -1,8 +1,6 @@
 use super::{data::FlightData, queries};
-use crate::{
-    datautils::convert_odt_to_timestamp,
-    proto::{self, flightmngr::FlightStatusEvent},
-};
+use crate::datautils::convert_odt_to_timestamp;
+use proto::{self, flightmngr::FlightStatusEvent};
 
 impl From<FlightData> for proto::flightmngr::Flight {
     fn from(flight_data: FlightData) -> Self {

@@ -1,6 +1,6 @@
-use flightmngr::proto::flightmngr::{
+use proto::flightmngr::{
     Airport, CreateAirportRequest, CreateFlightRequest, CreatePlaneRequest, Flight,
-    GetFlightRequest, Plane,
+    GetFlightRequest, Plane, SearchFlightsRequest,
 };
 use sqlx::PgPool;
 
@@ -144,7 +144,7 @@ async fn search(db: PgPool) {
     // successful search
     let r = client
         .flights
-        .search_flights(flightmngr::proto::flightmngr::SearchFlightsRequest {
+        .search_flights(SearchFlightsRequest {
             origin_id: airport1.id.clone(),
             destination_id: airport2.id.clone(),
             departure_day: Some(Default::default()),
@@ -159,7 +159,7 @@ async fn search(db: PgPool) {
     // unsuccessful search, wrong airports
     let r = client
         .flights
-        .search_flights(flightmngr::proto::flightmngr::SearchFlightsRequest {
+        .search_flights(SearchFlightsRequest {
             origin_id: airport2.id.clone(),
             destination_id: airport1.id.clone(),
             departure_day: Some(Default::default()),
@@ -173,7 +173,7 @@ async fn search(db: PgPool) {
     // unsuccessful search, wrong date
     let r = client
         .flights
-        .search_flights(flightmngr::proto::flightmngr::SearchFlightsRequest {
+        .search_flights(SearchFlightsRequest {
             origin_id: airport1.id.clone(),
             destination_id: airport2.id.clone(),
             departure_day: Some(prost_types::Timestamp {

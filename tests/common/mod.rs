@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use tonic::transport::{Channel, Endpoint, Server, Uri};
 use tower::service_fn;
 
-use flightmngr::proto::flightmngr::{
+use proto::flightmngr::{
     airports_client::AirportsClient, flights_client::FlightsClient, planes_client::PlanesClient,
 };
 

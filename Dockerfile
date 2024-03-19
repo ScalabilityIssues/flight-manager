@@ -27,5 +27,5 @@ LABEL org.opencontainers.image.source="https://github.com/ScalabilityIssues/flig
 COPY --from=builder /app/target/release/flightmngr /app/flightmngr
 USER 65534:65534
 ENV RUST_LOG=info
-EXPOSE 80
+EXPOSE 50051
 ENTRYPOINT [ "/app/flightmngr" ]

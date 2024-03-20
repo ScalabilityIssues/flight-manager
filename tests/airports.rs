@@ -1,4 +1,4 @@
-use proto::flightmngr::{
+use flightmngr::proto::flightmngr::{
     Airport, CreateAirportRequest, DeleteAirportRequest, GetAirportRequest, ListAirportsRequest,
 };
 use sqlx::{types::Uuid, PgPool};

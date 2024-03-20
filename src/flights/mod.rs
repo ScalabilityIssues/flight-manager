@@ -2,12 +2,12 @@ use tonic::{Request, Response, Status};
 
 use crate::datautils::{parse_id, parse_timestamp};
 use crate::db::Database;
-use proto::flightmngr::flight_status_event::Event;
-use proto::flightmngr::{
+use crate::proto::flightmngr::flight_status_event::Event;
+use crate::proto::flightmngr::{
     flights_server::Flights, CreateFlightRequest, Flight, GetFlightRequest, ListFlightsRequest,
     ListFlightsResponse, SearchFlightsRequest, UpdateFlightRequest,
 };
-use proto::flightmngr::{
+use crate::proto::flightmngr::{
     FlightCancelled, FlightDelayed, FlightGateArrival, FlightGateDeparture, FlightStatusEvent,
 };
 

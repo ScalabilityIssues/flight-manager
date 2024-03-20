@@ -1,5 +1,5 @@
 use super::queries;
-use proto;
+use crate::proto;
 
 impl From<queries::Plane> for proto::flightmngr::Plane {
     fn from(plane: queries::Plane) -> Self {

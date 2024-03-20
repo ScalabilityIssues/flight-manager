@@ -1,15 +1,14 @@
 use std::net::SocketAddr;
 
 use sqlx::PgPool;
+
 use tokio::net::TcpListener;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
-use tower_http::classify::{GrpcErrorsAsFailures, SharedClassifier};
 use tower_http::trace;
 use tracing::Level;
 
-use proto;
 mod config;
 
 #[tokio::main]
@@ -31,7 +30,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let services = flightmngr::build_services(db_pool);
     // build reflection service
     let reflection = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(flightmngr::proto::FILE_DESCRIPTOR_SET)
         .build()?;
 
     // bind server socket
@@ -43,11 +42,9 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Server::builder()
         // configure the server
         .layer(
-            trace::TraceLayer::new(SharedClassifier::new(
-                GrpcErrorsAsFailures::new().with_success(tower_http::classify::GrpcCode::NotFound),
-            ))
-            .make_span_with(trace::DefaultMakeSpan::new().level(Level::ERROR))
-            .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
+            trace::TraceLayer::new_for_grpc()
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::ERROR))
+                .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
         )
         // add services
         .add_routes(services)
@@ -56,6 +53,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // serve
         .serve_with_incoming_shutdown(TcpListenerStream::new(listener), async {
             let _ = signal(SignalKind::terminate()).unwrap().recv().await;
+            tracing::info!("shutting down");
         })
         .await?;
 

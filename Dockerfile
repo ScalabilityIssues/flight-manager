@@ -1,9 +1,7 @@
-ARG RUST_VERSION=1.76.0
-ARG APP_NAME=flightmngr
+ARG RUST_VERSION=1.78.0
 
 
 FROM rust:${RUST_VERSION}-alpine AS chef
-ARG APP_NAME
 RUN apk add --no-cache musl-dev protobuf-dev
 RUN cargo install cargo-chef
 WORKDIR /app

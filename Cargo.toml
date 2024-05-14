@@ -13,6 +13,7 @@ name = "flightmngr"
 path = "src/lib.rs"
 
 [dependencies]
+amqprs = "1.6.1"
 envy = "0.4.2"
 itertools = "0.12.1"
 prost = "0.12.3"

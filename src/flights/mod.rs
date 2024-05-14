@@ -11,12 +11,14 @@ use crate::proto::flightmngr::{
     FlightCancelled, FlightDelayed, FlightGateArrival, FlightGateDeparture, FlightStatusEvent,
 };
 
+use crate::rabbitmq::Rabbit;
 mod data;
 mod map;
 mod queries;
 
 pub struct FlightsApp {
     db: Database,
+    rabbitmq: Rabbit,
 }
 
 #[tonic::async_trait]
@@ -139,15 +141,17 @@ impl Flights for FlightsApp {
             }
         };
 
-        let flight = data::get_flight(t.get_conn(), id).await?;
-
+        let flight = data::get_flight(t.get_conn(), id).await?.into();
         t.commit().await?;
-        Ok(Response::new(flight.into()))
+
+        self.rabbitmq.notify_flight_update(&flight).await?;
+
+        Ok(Response::new(flight))
     }
 }
 
 impl FlightsApp {
-    pub fn new(db: Database) -> Self {
-        Self { db }
+    pub fn new(db: Database, rabbitmq: Rabbit) -> Self {
+        Self { db, rabbitmq }
     }
 }

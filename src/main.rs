@@ -34,7 +34,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &opt.rabbitmq_user,
         &opt.rabbitmq_password,
         String::from("flight-update"),
-        String::from("direct"),
+        String::from("fanout"),
     )
     .await?;
     tracing::info!("successfully connected to rabbitmq broker and channel created...");

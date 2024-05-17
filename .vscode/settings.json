@@ -10,8 +10,8 @@
     "terminal.integrated.env.linux": {
         "RUST_LOG": "info",
         "DATABASE_URL": "postgres://postgres:pwd@localhost:5432/",
-        "RABBITMQ_USER": "guest",
+        "RABBITMQ_USERNAME": "guest",
         "RABBITMQ_PASSWORD": "guest",
-        "RABBITMQ_URL": "localhost"
+        "RABBITMQ_HOST": "localhost",
     }
 }

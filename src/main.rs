@@ -29,9 +29,9 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create the rabbitmq channel
     tracing::info!("connecting to rabbitmq broker...");
     let rabbitmq = flightmngr::rabbitmq::Rabbit::new(
-        &opt.rabbitmq_url,
+        &opt.rabbitmq_host,
         opt.rabbitmq_port,
-        &opt.rabbitmq_user,
+        &opt.rabbitmq_username,
         &opt.rabbitmq_password,
         String::from("flight-update"),
         String::from("fanout"),

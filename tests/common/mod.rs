@@ -6,6 +6,8 @@ use flightmngr::proto::flightmngr::{
     airports_client::AirportsClient, flights_client::FlightsClient, planes_client::PlanesClient,
 };
 
+mod config;
+
 pub struct Clients {
     pub airports: AirportsClient<Channel>,
     pub planes: PlanesClient<Channel>,
@@ -13,11 +15,22 @@ pub struct Clients {
 }
 
 pub async fn make_test_client(db: PgPool) -> Result<Clients, Box<dyn std::error::Error>> {
+    let opt = envy::from_env::<config::Options>()?;
+    let rabbitmq = flightmngr::rabbitmq::Rabbit::new(
+        &opt.rabbitmq_host,
+        opt.rabbitmq_port,
+        &opt.rabbitmq_username,
+        &opt.rabbitmq_password,
+        String::from("flight-update"),
+        String::from("fanout"),
+    )
+    .await?;
+
     let (client, server) = tokio::io::duplex(1024);
 
     tokio::spawn(async move {
         let result = Server::builder()
-            .add_routes(flightmngr::build_services(db))
+            .add_routes(flightmngr::build_services(db, rabbitmq))
             .serve_with_incoming(tokio_stream::once(Ok::<_, std::io::Error>(server)))
             .await;
         assert!(result.is_ok());

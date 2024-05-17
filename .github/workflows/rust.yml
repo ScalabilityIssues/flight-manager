@@ -15,6 +15,10 @@ jobs:
       DATABASE_URL: "postgres://postgres:pwd@localhost:5432/"
       SCCACHE_GHA_ENABLED: true
       RUSTC_WRAPPER: sccache
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: 5672
 
     services:
       postgres:
@@ -25,6 +29,16 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbit:
+        image: rabbitmq:3
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5

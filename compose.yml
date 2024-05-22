@@ -5,11 +5,3 @@ services:
       POSTGRES_PASSWORD: pwd
     ports:
       - 5432:5432
-
-  server: 
-    build: .
-    ports:
-      - 50051:50051
-    environment:
-      DATABASE_URL: postgres://postgres:pwd@postgres:5432/postgres
-    depends_on: [postgres]

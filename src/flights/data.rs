@@ -19,7 +19,7 @@ pub struct FlightData(
 fn group_by_id<T>(list: Vec<T>, id: &'static impl Fn(&T) -> Uuid) -> HashMap<Uuid, Vec<T>> {
     list.into_iter()
         .sorted_by_key(id)
-        .group_by(id)
+        .chunk_by(id)
         .into_iter()
         .map(|(k, v)| (k, v.collect()))
         .collect()

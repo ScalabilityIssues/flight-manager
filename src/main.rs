@@ -49,7 +49,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // bind server socket
     let address = SocketAddr::new(opt.ip, opt.port);
     let listener = TcpListener::bind(address).await?;
-    tracing::info!("starting server on {}", address);
+    tracing::info!(%address, "starting server");
 
     // run server
     Server::builder()

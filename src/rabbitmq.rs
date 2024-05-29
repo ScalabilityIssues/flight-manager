@@ -1,13 +1,15 @@
 use std::error::Error;
 
-use crate::{errors::ApplicationError, proto::flightmngr::Flight};
+use crate::proto::flightmngr::Flight;
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
     channel::{BasicPublishArguments, Channel, ExchangeDeclareArguments},
     connection::{Connection, OpenConnectionArguments},
     BasicProperties, FieldTable,
 };
+use backon::{ExponentialBuilder, Retryable};
 use prost::Message;
+use thiserror::Error;
 
 pub struct Rabbit {
     _connection: Connection,
@@ -19,22 +21,23 @@ impl Rabbit {
     pub async fn new(
         rabbitmq_host: &str,
         rabbitmq_port: u16,
-        rabbitmq_user: &str,
+        rabbitmq_username: &str,
         rabbitmq_password: &str,
         exchange_name: String,
         exchange_type: String,
     ) -> Result<Self, Box<dyn Error>> {
-        // open a connection to RabbitMQ server
-        let rabbitmq = Connection::open(&OpenConnectionArguments::new(
+        let connection_arguments = OpenConnectionArguments::new(
             rabbitmq_host,
             rabbitmq_port,
-            rabbitmq_user,
+            rabbitmq_username,
             rabbitmq_password,
-        ))
-        .await?;
+        );
+
+        let rabbitmq = (|| async { Connection::open(&connection_arguments).await })
+            .retry(&ExponentialBuilder::default().with_max_times(10))
+            .await?;
 
         // Register connection level callbacks.
-        // TODO: In production, user should create its own type and implement trait `ConnectionCallback`.
         rabbitmq
             .register_callback(DefaultConnectionCallback)
             .await?;
@@ -66,16 +69,37 @@ impl Rabbit {
         })
     }
 
-    pub async fn notify_flight_update(&self, message: &Flight) -> Result<(), ApplicationError> {
+    pub async fn notify_flight_update(&self, message: &Flight) -> Result<(), NotifyError> {
         let message = message.encode_to_vec();
 
-        // create arguments for basic_publish
         let args = BasicPublishArguments::new(&self.exchange_name, "");
-        let properties = BasicProperties::default().finish();
+
+        let properties = BasicProperties::default()
+            .with_content_type("application/x-protobuf")
+            .with_message_type("flightmngr.Flight")
+            .finish();
+
         self.channel
             .basic_publish(properties, message, args)
             .await?;
 
         Ok(())
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum NotifyError {
+    #[error("rabbitmq error: {0}")]
+    RabbitError(#[from] amqprs::error::Error),
+}
+
+impl From<NotifyError> for tonic::Status {
+    fn from(error: NotifyError) -> Self {
+        match error {
+            _ => {
+                tracing::error!(%error, "internal error");
+                tonic::Status::internal("internal error")
+            }
+        }
     }
 }

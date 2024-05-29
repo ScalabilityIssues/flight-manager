@@ -13,7 +13,6 @@ use crate::proto::flightmngr::planes_server::PlanesServer;
 pub mod airports;
 mod datautils;
 pub mod db;
-mod errors;
 pub mod flights;
 pub mod planes;
 pub mod proto;
